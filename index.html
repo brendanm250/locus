@@ -1,0 +1,223 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Locus</title>
+
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet" >
+    <link rel="icon" type="image/png" href="logo.png">
+
+    <script>
+    // Detect theme immediately to prevent flashing
+        const darkModeMql = window.matchMedia('(prefers-color-scheme: dark)');
+        const defaultMapStyle = darkModeMql.matches
+            ? 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+            : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+    </script>
+
+</head>
+<body>
+
+<div id="offline-indicator" class="glass-panel capsule" hidden>
+    <span class="connection-status-dot"></span>
+    <span class="ui-label" style="color: #ff4444; font-weight: bold;">No Internet</span>
+</div>
+
+<!-- Popup window for assigning CSV columns to data fields -->
+<div id="modal-overlay">
+    <div id="mapper-modal">
+        <h3>Map CSV Columns</h3>
+        <div id="mapper-rows"></div>
+        <button onclick="visualizeData()" class="btn-primary-full">Visualize Data</button>
+    </div>
+</div>
+
+<!-- Main app container -->
+<div id="app-container">
+    <div id="main-view">
+        <div id="playback-hud">
+            <div class="hud-top-row">
+                <button onclick="togglePlay()" id="play-btn">▶</button>
+                <input type="range" id="time-slider" min="0" max="100" value="0" oninput="JumpEvent.jumpToTime(parseInt(this.value), true)">
+            </div>
+            <div class="hud-stats-row">
+                <div class="hud-stat">TIME: <span id="disp-time">--:--</span></div>
+                <div class="hud-stat">DIST: <span id="disp-dist">-- km</span></div>
+                <div class="hud-stat">ALT: <span id="disp-alt">-- m</span></div>
+            </div>
+        </div>
+
+        <div id="control-panel" class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Data Controls</span>
+                <button id="minimize-panel" onclick="togglePanel()" title="Toggle Panel">−</button>
+            </div>
+
+            <div id="panel-content">
+
+                <div id="section-input" class="control-section">
+                    <div class="section-header" onclick="toggleSection(this)">Data Input</div>
+
+                    <div class="section-content">
+                        <input type="file" id="csv-input" accept=".csv" class="input-styled">
+                        <div class="btn-row">
+                            <button onclick="toggleTable()">Raw Data</button>
+                            <button onclick="promptColumnMapping()">Remap Cols</button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div id="section-map" class="control-section">
+                    <div class="section-header" onclick="toggleSection(this)">Map Settings</div>
+                    <div class="section-content">
+                        <div class="setting-row">
+                            <label class="ui-label">Basemap Style</label>
+                            <select id="basemap-select" onchange="setBasemap(this.value)">
+                                <option value="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json">Dark Mode</option>
+                                <option value="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json">Light Mode</option>
+                                <option value="mapbox://styles/mapbox/satellite-v9">Satellite</option>
+                                <option value="mapbox://styles/mapbox/outdoors-v12">Outdoors / Terrain</option>
+                            </select>
+                            <script>
+                                // Set value instantly as the DOM is parsed
+                                document.getElementById('basemap-select').value = defaultMapStyle;
+                            </script>
+                        </div>
+
+                        <div class="setting-row">
+                            <label class="ui-label">Elevation Scale</label>
+                            <span id="scale-val" class="ui-value">0x</span>
+                            <input type="range" min="0" max="5" value="0" step="0.05" oninput="updateScale(this.value)">
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <div id="data-dependent-controls" style="display: none;">
+                    <div class="control-section">
+                        <div class="section-header" onclick="toggleSection(this)">Map Configuration</div>
+                        <div class="section-content">
+
+                            <div class="toggle-row">
+                                <span class="ui-label">Terrain Corrections:</span>
+                                <input type="checkbox" id="show-corrections" onchange="toggleCorrections(this.checked)" checked>
+                            </div>
+
+                            <div class="setting-row">
+                                <label class="ui-label">Color Path By</label>
+                                <select id="color-select" onchange="updateColorBy(this.value)">...</select>
+                            </div>
+
+                            <div id="gradient-container" style="display:none;">
+                                <label class="ui-label">Select Gradient:</label>
+                                <div id="gradient-picker"></div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="table-panel" class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Raw Data</span>
+                <button class="btn-icon" onclick="toggleTable()">×</button>
+            </div>
+            <div id="data-table-container">
+                <table id="data-table">
+                    <thead><tr id="table-header"></tr></thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <div id="chart-container" class="panel floating-panel">
+        <div class="panel-header">
+            <span class="panel-title">Data Chart</span>
+            <button id="minimize-chart" onclick="toggleChart()">−</button>
+        </div>
+
+        <div id="chart-content">
+            <div id="chart-sidebar" class="collapsed">
+                <button id="sidebar-toggle" onclick="toggleChartSidebar()" title="Toggle Settings">⚙</button>
+
+                <div id="sidebar-inner">
+                    <div class="control-section">
+                        <div class="section-content">
+
+                            <div class="setting-row">
+                                <label class="ui-label">X-Axis:</label>
+                                <select id="xaxis-select" onchange="setXAxisMode(this.value)">
+                                    <option value="time">Time</option>
+                                    <option value="distance">Dist</option>
+                                </select>
+                            </div>
+
+                            <label class="ui-label">Visible Traces</label>
+                            <div class="checkbox-list" id="trace-list"></div>
+
+                            <div class="setting-row">
+                                <label class="ui-label">Context Trace</label>
+                                <select id="context-trace" onchange="updateChartContextTrace(this.value)"></select>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="chart-main">
+                <div id="chart-placeholder">
+                    <div class="placeholder-icon">📊</div>
+                    <div class="placeholder-text">No data to display...</div>
+                </div>
+                <div id="chart" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
+<script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.4.2/chroma.min.js"></script>
+
+<script src="js/config.js"></script>
+<script src="js/init.js"></script>
+<script src="js/map.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/table.js"></script>
+<script src="js/layers.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/gradients.js"></script>
+<script src="js/utils.js"></script>
+
+<script>
+    "use strict";
+    // 1. GLOBAL REFERENCES
+    let map;
+
+    let appState = null;
+    let deckOverlay = null;
+    let chart = null;
+
+     // --- DATA HANDLING ---
+
+
+    launchApp();
+
+</script>
+</body>
+</html>
