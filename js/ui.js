@@ -125,6 +125,7 @@ function updateScale(val) {
     appState.altScale = parseFloat(val);
     appState.effectiveScale = getEffectiveScale()
     document.getElementById('scale-val').innerText = appState.altScale.toFixed(2) + "x";
+    updateScreenCoordsCache();
     syncTerrainToPitch();
     renderMapLayers();
     updateChartHighlight();
