@@ -334,6 +334,16 @@
     button:hover { background: var(--bg-btn-hover); }
     button.active { background: var(--accent-blue); }
 
+    .btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 5px;
+    }
+
+    .btn-row button {
+        flex: 1; /* Makes side-by-side buttons equal width */
+    }
+
 
 
     .setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 10px; }

@@ -12,6 +12,80 @@ window.addEventListener('online', () => {
     liveIndicator.setAttribute('hidden', '');
 });
 
+// Run this right away inside your launchApp() function so the list is ready
+function populateSampleDataDropdown() {
+    const owner = 'brendanm250'; // e.g., 'vcervewrv'
+    const repo = 'locus';       // e.g., 'flight-path-map'
+    const folderPath = 'sample_data';           // The folder where your CSVs live
+
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${folderPath}`;
+
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) throw new Error('GitHub API rate limit or repo not found');
+            return response.json();
+        })
+        .then(files => {
+            const select = document.getElementById('sample-data-select');
+            select.innerHTML = ''; // Clear the "Loading..." text
+
+            // Filter out anything that isn't a CSV
+            const csvFiles = files.filter(file => file.name.endsWith('.csv'));
+
+            if (csvFiles.length === 0) {
+                select.innerHTML = '<option value="">No samples found</option>';
+                return;
+            }
+
+            // Populate the dropdown
+            csvFiles.forEach(file => {
+                const option = document.createElement('option');
+                // The API provides a 'download_url' which gives us the raw CSV text
+                option.value = file.download_url;
+                option.textContent = file.name.replace('.csv', ''); // Make it look cleaner
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching file list:', error);
+            document.getElementById('sample-data-select').innerHTML = '<option value="">Failed to load list</option>';
+        });
+}
+
+// Attach this to your new Load button
+function loadSelectedSample() {
+    const downloadUrl = document.getElementById('sample-data-select').value;
+
+    if (!downloadUrl) {
+        alert("Please select a valid sample file.");
+        return;
+    }
+
+    fetch(downloadUrl)
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch file content');
+            return response.text();
+        })
+        .then(csvText => {
+            Papa.parse(csvText, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    appState.rawData = results.data;
+                    appState.headers = results.meta.fields;
+
+                    // You can call visualizeData() directly here if you want to bypass the mapping modal
+                    promptColumnMapping();
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading sample data:', error);
+            alert('Failed to load sample data.');
+        });
+}
+
 function launchApp() {
     // Run when the window changes size
     window.addEventListener('resize', adjustHUDLayout);
@@ -82,6 +156,7 @@ function launchApp() {
     });
 
     attachJumpEvents();
+    populateSampleDataDropdown();
 }
 
 function promptColumnMapping() {

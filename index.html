@@ -63,9 +63,21 @@
 
                     <div class="section-content">
                         <input type="file" id="csv-input" accept=".csv" class="input-styled">
+
                         <div class="btn-row">
                             <button onclick="toggleTable()">Raw Data</button>
-                            <button onclick="promptColumnMapping()">Remap Cols</button>
+                            <button onclick="promptColumnMapping()">Remap Columns</button>
+                        </div>
+
+                        <div class="setting-row" style="margin-top: 15px; border-top: 1px solid var(--border-strong); padding-top: 15px;">
+                            <label class="ui-label">Sample Data</label>
+                            <select id="sample-data-select" style="width: 100%; margin-bottom: 10px;">
+                                <option value="">Loading sample list...</option>
+                            </select>
+                        </div>
+
+                        <div class="btn-row">
+                            <button onclick="loadSelectedSample()">Load Sample Data</button>
                         </div>
                     </div>
 
