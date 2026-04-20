@@ -266,6 +266,20 @@ function buildTooltip() {
         formatter: (params) => {
             if (!params || params.length === 0) return '';
 
+            // --- DEDUPLICATION FIX ---
+            // Distance can plateau (stationary object), causing multiple points at the exact same X value.
+            // ECharts grabs ALL of them. We filter down to just one point per trace.
+            const uniqueParams = [];
+            const seenSeries = new Set();
+
+            params.forEach(p => {
+                if (p.seriesId === 'context-trace') return;
+                if (!seenSeries.has(p.seriesName)) {
+                    seenSeries.add(p.seriesName);
+                    uniqueParams.push(p);
+                }
+            });
+
             const xVal = params[0].value[0];
 
             // --- BOLDING LOGIC ---
@@ -273,11 +287,8 @@ function buildTooltip() {
             let minDiff = Infinity;
             const mouseY = appState.chartMouseY || 0;
 
-            params.forEach((p, i) => {
-                if (p.seriesId === 'context-trace') return;
-
-                // Convert data point (X, Y) to Screen Pixels (X, Y)
-                // We need the seriesIndex to know which Y-axis to use
+            // Loop over uniqueParams instead of params
+            uniqueParams.forEach((p, i) => {
                 const pixelPos = chart.convertToPixel({ seriesIndex: p.seriesIndex }, [p.value[0], p.value[1]]);
 
                 if (pixelPos) {
@@ -293,9 +304,8 @@ function buildTooltip() {
             let content = `<div style="font-size:11px; color:#aaa; margin-bottom:4px;">${formatXAxisValue(xVal)}</div>`;
             content += '<table style="width:100%; border-collapse:collapse;">';
 
-            params.forEach((p, i) => {
-                if (p.seriesId === 'context-trace') return;
-
+            // Loop over uniqueParams instead of params
+            uniqueParams.forEach((p, i) => {
                 const isClosest = (i === closestIndex);
                 const style = isClosest ?
                     'font-weight:bold; color:#fff; font-size:13px;' :
