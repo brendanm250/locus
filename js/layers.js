@@ -7,9 +7,10 @@ const defaultMinPixelWidth = 3;
 const BEAD_CONFIG = {
     targetPixels: 4.5,
     minSizeMeters: defaultWidth * 3,
+    maxSizePixels: 6,
     calculateBeadScale: function() {
         const metersPerPixel = getMetersPerPixel();
-        return Math.max(this.minSizeMeters, this.targetPixels * metersPerPixel);
+        return Math.min(Math.max(this.minSizeMeters, this.targetPixels * metersPerPixel), this.maxSizePixels*metersPerPixel);
     },
     beadGeometry: typeof luma !== 'undefined' ? new luma.SphereGeometry({radius: 1, nlat: 10, nlong: 10}) : null
 };
