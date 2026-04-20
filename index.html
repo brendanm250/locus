@@ -13,9 +13,7 @@
     <script>
     // Detect theme immediately to prevent flashing
         const darkModeMql = window.matchMedia('(prefers-color-scheme: dark)');
-        const defaultMapStyle = darkModeMql.matches
-            ? 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
-            : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+        const defaultMapStyle = "mapbox://styles/mapbox/outdoors-v12";
     </script>
 
 </head>
