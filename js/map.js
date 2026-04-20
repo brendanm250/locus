@@ -180,21 +180,21 @@ function updateScreenCoordsCache() {
     if (!appState.processedData.length) return;
 
     const viewport = getCurrentViewport();
-    const bounds = map.getBounds();
-    const pad = 0.002;
-
-    const w = bounds.getWest() - pad;
-    const e = bounds.getEast() + pad;
-    const s = bounds.getSouth() - pad;
-    const n = bounds.getNorth() + pad;
+    const canvas = map.getCanvas();
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const pad = 50; // Match the hover threshold
 
     // Map the 3D data to 2D screen pixels once
     appState.screenCoordsCache = appState.processedData.map(pt => {
-        // Cull points outside the viewport before projecting
-        if (pt._lon < w || pt._lon > e || pt._lat < s || pt._lat > n) {
-            return null; // Mark as null for easy filtering later
+        const screenPos = viewport.project([pt._lon, pt._lat, pt._renderAlt * appState.effectiveScale]);
+
+        // Screen-space culling handles shallow angles perfectly
+        if (screenPos[0] < -pad || screenPos[0] > w + pad ||
+            screenPos[1] < -pad || screenPos[1] > h + pad) {
+            return null;
         }
-        return viewport.project([pt._lon, pt._lat, pt._renderAlt * appState.effectiveScale]);
+        return screenPos; // Returns [x, y, z] where z is depth
     });
 }
 
