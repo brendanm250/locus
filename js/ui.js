@@ -179,6 +179,7 @@ function toggleSection(headerElement) {
 function revealDataControls() {
     const dataControls = document.getElementById('data-dependent-controls');
     dataControls.style.display = 'block';
+    document.getElementById('data-action-btns').style.display = 'flex';
 }
 
 function toggleChart() {

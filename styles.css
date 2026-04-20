@@ -346,7 +346,14 @@
         flex: 1; /* Makes side-by-side buttons equal width */
     }
 
+    /* Custom color for the sample data button */
+    #btn-load-sample {
+        background-color: #47b461; /* A nice green, change to whatever hex you prefer */
+    }
 
+    #btn-load-sample:hover {
+        background-color: #218838; /* A slightly darker shade for the hover state */
+    }
 
     .setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 10px; }
     .setting-row label { flex: 0 0 110px; margin-bottom: 0; font-size: 0.8rem; color: var(--text-muted); }

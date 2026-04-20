@@ -64,7 +64,7 @@
                     <div class="section-content">
                         <input type="file" id="csv-input" accept=".csv" class="input-styled">
 
-                        <div class="btn-row">
+                        <div class="btn-row" id="data-action-btns" style="display: none;">
                             <button onclick="toggleTable()">Raw Data</button>
                             <button onclick="promptColumnMapping()">Remap Columns</button>
                         </div>
@@ -77,7 +77,7 @@
                         </div>
 
                         <div class="btn-row">
-                            <button onclick="loadSelectedSample()">Load Sample Data</button>
+                            <button id="btn-load-sample" onclick="loadSelectedSample()">Load Sample Data</button>
                         </div>
                     </div>
 
