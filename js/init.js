@@ -131,7 +131,7 @@ function launchApp() {
         chartViewRange: null,
         highlightedDataCache: [],
         liftedSegments: [],
-        showCorrections: true,
+        showCorrections: false,
         showGroundTrack: true,
         terrainVersion: 0,
         effectiveScale: null
