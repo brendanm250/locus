@@ -138,9 +138,9 @@ function launchApp() {
     };
     Object.preventExtensions(appState); // Make sure I centrally manage app state properties
 
-    if (sharedDataParam) {
-        loadSharedData(sharedDataParam);
-    }
+    // if (sharedDataParam) {
+    //     loadSharedData(sharedDataParam);
+    // }
 
     // --- MAP INITIALIZATION ---
     initializeMap();
