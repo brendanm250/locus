@@ -245,7 +245,7 @@ function buildTooltip() {
         textStyle: { color: theme.get('--text-main'), fontSize: 12 },
         confine: true,
 
-        // 1. Follow the Mouse (Grafana Style)
+        // Follow the Mouse
         position: function (pos, params, dom, rect, size) {
             const x = pos[0];
             const y = pos[1];
@@ -269,7 +269,6 @@ function buildTooltip() {
             const xVal = params[0].value[0];
 
             // --- BOLDING LOGIC ---
-            // 1. Calculate pixel distance for every point
             let closestIndex = -1;
             let minDiff = Infinity;
             const mouseY = appState.chartMouseY || 0;
@@ -362,16 +361,13 @@ function updateChartHighlight() {
             let startVal = null;
             let lastVal = null;
 
-            // FIX: Dynamic striding. Cap the loop to ~300 iterations to save CPU,
-            // scaling the step size based on the total dataset length.
             const targetSamples = 3000;
             const step = Math.max(1, Math.floor(appState.processedData.length / targetSamples));
 
-            // Iterate using the step value instead of i++
             for (let i = 0; i < appState.processedData.length; i += step) {
                 const pt = appState.processedData[i];
 
-                // Project the 3D coordinate (maintaining your high-altitude accuracy)
+                // Project the 3D coordinate
                 const screenPos = viewport.project([pt._lon, pt._lat, pt._alt * effectiveScale]);
 
                 // Strict Screen Check
