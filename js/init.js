@@ -1,6 +1,11 @@
 // init.js
 
-let REQUIRED_FIELDS = null;
+let REQUIRED_FIELDS = [
+        { key: 'time', label: 'Time' },
+        { key: 'lat', label: 'Latitude' },
+        { key: 'lon', label: 'Longitude' },
+        { key: 'alt', label: 'Altitude' }
+    ];
 
 window.addEventListener('offline', () => {
     const liveIndicator = document.getElementById('offline-indicator');
@@ -75,8 +80,8 @@ function loadSelectedSample() {
                     appState.rawData = results.data;
                     appState.headers = results.meta.fields;
 
-                    // You can call visualizeData() directly here if you want to bypass the mapping modal
-                    promptColumnMapping();
+                    autoDetectColumns(); // Pre-fill mapping based on header names
+                    visualizeData(true); // Skip DOM update since we already have the mapping
                 }
             });
         })
@@ -133,6 +138,10 @@ function launchApp() {
     };
     Object.preventExtensions(appState); // Make sure I centrally manage app state properties
 
+    if (sharedDataParam) {
+        loadSharedData(sharedDataParam);
+    }
+
     // --- MAP INITIALIZATION ---
     initializeMap();
 
@@ -163,68 +172,42 @@ function promptColumnMapping() {
     const container = document.getElementById('mapper-rows');
     container.innerHTML = '';
 
-    REQUIRED_FIELDS = [
-        { key: 'time', label: 'Time' },
-        { key: 'lat', label: 'Latitude' },
-        { key: 'lon', label: 'Longitude' },
-        { key: 'alt', label: 'Altitude' }
-    ];
-    REQUIRED_FIELDS.forEach(field => { //TODO allow for data without time or altitude
+    // Run the detection first so appState.mapping is populated
+    autoDetectColumns();
+
+    REQUIRED_FIELDS.forEach(field => {
         const div = document.createElement('div');
         div.style.marginBottom = "10px";
+
         const label = document.createElement('div');
         label.innerText = field.label;
-        label.style.color="#aaa";
+        label.style.color = "#aaa";
 
         const select = document.createElement('select');
         select.id = `map-${field.key}`;
 
-        let selectedIdx = 0;
-        if (appState.mapping[field.key]) {
-            selectedIdx = appState.headers.indexOf(appState.mapping[field.key]);
-        } else {
-            let bestScore = -1;
-            appState.headers.forEach((h, i) => {
-                const header = h.toLowerCase();
-                const key = field.key.toLowerCase();
-                let score = 0;
-
-                if (header.includes(key)) {
-                    score = 1; // Base match (e.g., "alt")
-
-                    // "Nudge" the altitude logic
-                    if (field.key === 'alt') {
-                        if (header.includes('gps')) score += 1;
-                        if (header.includes('msl') || header.includes('hae')) score += 1;
-                        if (header.includes('baro')) score += 0.5; // Deprioritize baro if others exist
-                    }
-
-                    // "Nudge" the time logic
-                    if (field.key === 'time') {
-                        if (header.includes('time')) score += 1;
-                    }
-                }
-
-                if (score > bestScore) {
-                    bestScore = score;
-                    selectedIdx = i;
-                }
-            });
-        }
-
+        // Populate dropdown options
         select.innerHTML = appState.headers.map(h => `<option value="${h}">${h}</option>`).join('');
-        select.selectedIndex = Math.max(0, selectedIdx);
+
+        // Set the dropdown to whatever our auto-detect logic picked
+        select.value = appState.mapping[field.key];
+
         div.appendChild(label);
         div.appendChild(select);
         container.appendChild(div);
     });
+
     document.getElementById('modal-overlay').style.display = 'flex';
 }
 
-function visualizeData() {
-    REQUIRED_FIELDS.forEach(field => {
-        appState.mapping[field.key] = document.getElementById(`map-${field.key}`).value;
-    });
+function visualizeData(skipDom = false) {
+    if (!skipDom) {
+        // Only scrape the HTML if the user clicked the modal button
+        REQUIRED_FIELDS.forEach(field => {
+            appState.mapping[field.key] = document.getElementById(`map-${field.key}`).value;
+        });
+    }
+
     document.getElementById('modal-overlay').style.display = 'none';
 
     let cumDist = 0;
@@ -385,3 +368,37 @@ function attachJumpEvents() {
     });
 }
 
+function autoDetectColumns() {
+
+    REQUIRED_FIELDS.forEach(field => {
+        let bestScore = -1;
+        let selectedIdx = 0;
+
+        appState.headers.forEach((h, i) => {
+            const header = h.toLowerCase();
+            const key = field.key.toLowerCase();
+            let score = 0;
+
+            if (header.includes(key)) {
+                score = 1;
+
+                if (field.key === 'alt') {
+                    if (header.includes('gps')) score += 1;
+                    if (header.includes('msl') || header.includes('hae')) score += 1;
+                    if (header.includes('baro')) score += 0.5;
+                }
+                if (field.key === 'time') {
+                    if (header.includes('time')) score += 1;
+                }
+            }
+
+            if (score > bestScore) {
+                bestScore = score;
+                selectedIdx = i;
+            }
+        });
+
+        // Save the best guess directly to the app state
+        appState.mapping[field.key] = appState.headers[selectedIdx];
+    });
+}
