@@ -36,16 +36,13 @@ function addTerrain() {
             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / duration, 1);
 
-            // Optional: Add an "Ease-Out" effect so it slows down as it finishes
             // const ease = 1/(1 + Math.exp(-15 * (progress - 0.5))); // Sigmoid easing
             const ease = progress < 0.5 ? 4 * Math.pow(progress, 3) : 1 - Math.pow(-2 * progress + 2, 3) / 2; // Smoothstep easing
 
             let currentScale = Math.max(0, ease * targetScale);
             updateScale(currentScale);
 
-            // 2. Update the UI Elements
             if (slider) slider.value = currentScale;
-            // if (scaleLabel) scaleLabel.innerText = Math.round(currentScale) + "x";
 
             if (progress < 1) {
                 requestAnimationFrame(animateTerrain);
@@ -77,17 +74,12 @@ function getMetersPerPixel() {
 function getBillboardOffset() {
     const metersPerPixel = getMetersPerPixel();
 
-    // 2. Determine the physical radius of the billboard
-    // The path is defined as 4 meters wide, or a minimum of 3 pixels wide.
+
     const nativeRadiusMeters = 4 / 2;
     const expandedRadiusMeters = (3 / 2) * metersPerPixel;
 
-    // 3. The offset is exactly the radius of the cylinder currently being drawn
     const baseOffset = Math.max(nativeRadiusMeters, expandedRadiusMeters);
 
-    // 4. Terrain LOD Buffer
-    // When Mapbox simplifies distant terrain, flat proxy triangles cut slightly above true ground.
-    // Adding 1 pixel's worth of physical buffer easily clears this LOD discrepancy.
     const lodBuffer = 1.0 * metersPerPixel;
 
     return baseOffset + lodBuffer;
@@ -107,7 +99,6 @@ function syncTerrainToPitch() {
 }
 
 function applyTerrainCorrection() {
-    // if (appState.processedData.some(pt => pt._groundAlt !== null)) return; // Already calculated all points
     if (!appState.processedData || !map.getSource('mapbox-dem')) return; // No data to correct or terrain not ready
 
     const currentExaggeration = map.getTerrain().exaggeration;
@@ -116,7 +107,7 @@ function applyTerrainCorrection() {
     appState.liftedSegments = [];
     let pointsCorrected = 0;
 
-    // 1. Calculate the lifted points
+    // Calculate the lifted points
     appState.processedData.forEach(pt => {
         // if (pt._groundAlt !== null) return; // Already calculated
 
@@ -135,7 +126,7 @@ function applyTerrainCorrection() {
         }
     });
 
-    // 2. Build continuous segments for the visual cue
+    // Build continuous segments for the visual cue
     let currentSegment = null;
 
     for (let i = 0; i < appState.processedData.length; i++) {
@@ -192,7 +183,6 @@ function updateScreenCoordsCache() {
     const bounds = map.getBounds();
     const pad = 0.002;
 
-    // FIX 1: Hoist function calls OUTSIDE the loop!
     const w = bounds.getWest() - pad;
     const e = bounds.getEast() + pad;
     const s = bounds.getSouth() - pad;
