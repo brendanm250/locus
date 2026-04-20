@@ -132,7 +132,7 @@
         bottom: 25px;
         left: var(--gap-std);
         right: var(--gap-std);
-        height: 280px;
+        height: 225px;
         width: auto;
         z-index: 110;
         display: flex; flex-direction: column; overflow: hidden;
