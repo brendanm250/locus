@@ -190,7 +190,7 @@ function buildTraces(xAxisMode, data) {
             data: appState.processedData.map(d => [d[xAxisKey], d[col]]),
             markArea: {
                 silent: true,
-                itemStyle: { color: theme.get('--bg-section') },
+                itemStyle: { color: theme.get('--chart-highlight') },
                 data: []
             }
         });
@@ -216,7 +216,7 @@ function buildTraces(xAxisMode, data) {
         silent: true,
         markArea: {
             silent: true,
-            itemStyle: { color: theme.get('--bg-section')},
+            itemStyle: { color: theme.get('--chart-highlight')},
             data: []
         }
     });
