@@ -77,8 +77,10 @@ function loadSelectedSample() {
                 dynamicTyping: true,
                 skipEmptyLines: true,
                 complete: (results) => {
-                    appState.rawData = results.data;
+                    const { data: cleanedData, units } = detectAndStripUnits(results);
+                    appState.rawData = cleanedData;
                     appState.headers = results.meta.fields;
+                    appState.units = units || {};
 
                     autoDetectColumns(); // Pre-fill mapping based on header names
                     visualizeData(true); // Skip DOM update since we already have the mapping
@@ -94,6 +96,11 @@ function loadSelectedSample() {
 function launchApp() {
     // Run when the window changes size
     window.addEventListener('resize', adjustHUDLayout);
+
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const sharedDataParam = hashParams.get('share');
+
+
 
     // Run a ResizeObserver on the control panel.
     // This is critical because it will fire smoothly as the panel transitions
@@ -115,6 +122,7 @@ function launchApp() {
         dataStats: {},
         headers: [],
         mapping: {},
+        units: {},
         hoverIndex: -1,
         altScale: 1.75,
         isPlaying: false,
@@ -156,11 +164,13 @@ function launchApp() {
             header: true,
             dynamicTyping: true,
             skipEmptyLines: true,
-            complete: (results) => {
-                appState.rawData = results.data;
-                appState.headers = results.meta.fields;
-                promptColumnMapping();
-            }
+                complete: (results) => {
+                    const { data: cleanedData, units } = detectAndStripUnits(results);
+                    appState.rawData = cleanedData;
+                    appState.headers = results.meta.fields;
+                    appState.units = units || {};
+                    promptColumnMapping();
+                }
         });
     });
 
@@ -219,8 +229,18 @@ function visualizeData(skipDom = false) {
     appState.processedData = appState.rawData.map((row, i) => {
         const rawLat = row[appState.mapping.lat];
         const rawLon = row[appState.mapping.lon];
-        const rawAlt = row[appState.mapping.alt] || 'noAltData';
-        const rawTime = row[appState.mapping.time] || 'noTimeData';
+        let rawAlt = row[appState.mapping.alt] || 'noAltData';
+        let rawTime = row[appState.mapping.time] || 'noTimeData';
+
+        // Apply unit conversions if a units row was detected
+        if (rawAlt !== 'noAltData' && typeof rawAlt === 'number') {
+            const altUnit = appState.units && appState.units[appState.mapping.alt];
+            if (altUnit) rawAlt = convertAltitude(rawAlt, altUnit);
+        }
+        if (rawTime !== 'noTimeData' && typeof rawTime === 'number') {
+            const timeUnit = appState.units && appState.units[appState.mapping.time];
+            if (timeUnit) rawTime = convertTime(rawTime, timeUnit);
+        }
 
         if (!rawLat || !rawLon) return null;
 
@@ -402,3 +422,78 @@ function autoDetectColumns() {
         appState.mapping[field.key] = appState.headers[selectedIdx];
     });
 }
+
+    // Detect if the first data row actually contains units (common pattern)
+    function detectAndStripUnits(results) {
+        const fields = results.meta && results.meta.fields ? results.meta.fields : [];
+        const data = results.data || [];
+        if (!data || data.length === 0) return { data, units: {} };
+
+        const firstRow = data[0];
+        const units = {};
+        let unitCount = 0;
+
+        const unitTokens = ['m','meter','metre','meters','metres','km','kilometer','kilometre','ft','feet','foot','s','sec','second','seconds','ms','millisecond','hr','hour','h','min','minute','°','deg','degree','degrees'];
+
+        fields.forEach(h => {
+            const val = firstRow[h];
+            if (typeof val !== 'string') return;
+            const s = val.trim().toLowerCase();
+            if (!s || s.length > 20) return;
+            if (/\d/.test(s)) return; // probably not a unit if it contains digits
+
+            for (const token of unitTokens) {
+                if (s === token || s.includes(token)) {
+                    units[h] = s;
+                    unitCount++;
+                    break;
+                }
+            }
+        });
+
+        // If many columns look like units, treat the first data row as a units row
+        if (unitCount >= Math.max(2, Math.floor(fields.length / 2))) {
+            return { data: data.slice(1), units };
+        }
+        return { data, units: {} };
+    }
+
+    function normalizeUnit(u) {
+        if (!u || typeof u !== 'string') return null;
+        const s = u.toLowerCase();
+        if (s.includes('meter') || s === 'm') return 'm';
+        if (s.includes('kilom') || s === 'km') return 'km';
+        if (s.includes('foot') || s.includes('ft') || s.includes('feet')) return 'ft';
+        if (s === 'cm' || s.includes('cent')) return 'cm';
+        if (s === 'ms' || s.includes('millis')) return 'ms';
+        if (s === 's' || s.includes('sec')) return 's';
+        if (s.includes('min')) return 'min';
+        if (s === 'h' || s.includes('hour') || s.includes('hr')) return 'h';
+        return s;
+    }
+
+    function convertAltitude(val, unitStr) {
+        if (val == null) return val;
+        const n = Number(val);
+        if (Number.isNaN(n)) return val;
+        const u = normalizeUnit(unitStr);
+        if (!u) return n;
+        if (u === 'm') return n;
+        if (u === 'km') return n * 1000;
+        if (u === 'ft') return n * 0.3048;
+        if (u === 'cm') return n / 100;
+        return n; // fallback
+    }
+
+    function convertTime(val, unitStr) {
+        if (val == null) return val;
+        const n = Number(val);
+        if (Number.isNaN(n)) return val;
+        const u = normalizeUnit(unitStr);
+        if (!u) return n;
+        if (u === 'ms') return n / 1000;
+        if (u === 's') return n;
+        if (u === 'min') return n * 60;
+        if (u === 'h') return n * 3600;
+        return n;
+    }
