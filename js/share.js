@@ -294,10 +294,10 @@ function rdpIndices(points, epsilon) {
             if (d > maxDist) { maxDist = d; index = i; }
         }
         if (maxDist > epsilon && index !== -1) {
+            // mark the pivot point as kept
+            keep[index] = 1;
             recurse(startIdx, index);
             recurse(index, endIdx);
-        } else {
-            // nothing to add
         }
     }
 
