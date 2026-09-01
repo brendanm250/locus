@@ -57,6 +57,22 @@ function populateSampleDataDropdown() {
         });
 }
 
+function populateShareColumnOptions(headers) {
+    const select = document.getElementById('share-columns');
+    if (!select) return;
+    select.innerHTML = '';
+    headers.forEach(h => {
+        const opt = document.createElement('option');
+        opt.value = h;
+        opt.textContent = h;
+        // Pre-select common telemetry columns if present
+        if (['Time', 'time', 'Latitude', 'latitude', 'Longitude', 'longitude', 'Altitude', 'alt'].includes(h)) {
+            opt.selected = true;
+        }
+        select.appendChild(opt);
+    });
+}
+
 // Attach this to your new Load button
 function loadSelectedSample() {
     const downloadUrl = document.getElementById('sample-data-select').value;
@@ -146,10 +162,6 @@ function launchApp() {
     };
     Object.preventExtensions(appState); // Make sure I centrally manage app state properties
 
-    // if (sharedDataParam) {
-    //     loadSharedData(sharedDataParam);
-    // }
-
     // --- MAP INITIALIZATION ---
     initializeMap();
 
@@ -173,6 +185,9 @@ function launchApp() {
                 }
         });
     });
+
+    // Load shared data after map is initialized to avoid map being undefined
+    if (sharedDataParam) loadSharedData(sharedDataParam);
 
     attachJumpEvents();
     populateSampleDataDropdown();
@@ -315,6 +330,9 @@ function visualizeData(skipDom = false) {
     renderTable(appState.rawData, appState.headers);
     calculatePathColors();
     renderMapLayers();
+
+    // Populate share column options so user can pick which columns to include
+    populateShareColumnOptions(appState.headers);
 
     revealDataControls();
     initializeChartUI()

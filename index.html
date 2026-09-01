@@ -16,6 +16,10 @@
         const defaultMapStyle = "mapbox://styles/mapbox/outdoors-v12";
     </script>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+
 </head>
 <body>
 
@@ -76,6 +80,45 @@
 
                         <div class="btn-row">
                             <button id="btn-load-sample" onclick="loadSelectedSample()">Load Sample Data</button>
+                        </div>
+
+                        <div style="margin-top:16px;border-top:1px solid var(--border-strong);padding-top:12px">
+                            <label class="ui-label">Share / Export</label>
+                            <div class="setting-row" style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
+                                <div style="display:flex;flex-direction:column;align-items:flex-start;">
+                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Downsample (keep every Nth point)</label>
+                                    <input id="share-downsample" type="number" min="1" step="1" value="10" style="width:80px;" title="Keep every Nth point" oninput="this.value = Math.max(1, Math.round(Number(this.value) || 1))">
+                                </div>
+                                <div style="display:flex;flex-direction:column;">
+                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Columns (hold Ctrl to multi-select)</label>
+                                    <select id="share-columns" multiple size="6" style="min-width:180px;max-height:140px;overflow:auto;"></select>
+                                </div>
+                                <div style="display:flex;flex-direction:column;gap:6px;">
+                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Compression</label>
+                                    <select id="share-compress" style="width:140px;">
+                                        <option value="lz">LZ (URL-safe)</option>
+                                        <option value="pako">gzip+base64 (denser)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+                                <div style="display:flex;flex-direction:column;">
+                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Simplify (RDP epsilon, 0 disables)</label>
+                                    <input id="share-simplify-eps" type="number" step="0.1" value="0" style="width:100px;" title="RDP epsilon (0 disables)">
+                                </div>
+                                <div style="display:flex;flex-direction:column;">
+                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Reduce precision</label>
+                                    <input id="share-reduce-precision" type="checkbox" checked>
+                                </div>
+                            </div>
+                            <div class="btn-row" style="margin-top:8px;">
+                                <button onclick="generateShareURLFromUI()">Generate Share URL</button>
+                                <button onclick="copyShareURL()">Copy URL</button>
+                            </div>
+                            <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+                                <input id="share-url" readonly placeholder="Generated share URL will appear here" style="flex:1;" />
+                                <div id="qr-container" style="width:64px;height:64px"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -213,6 +256,7 @@
 <script src="js/ui.js"></script>
 <script src="js/gradients.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/share.js"></script>
 
 <script>
     "use strict";
