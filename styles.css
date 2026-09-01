@@ -319,6 +319,16 @@
         width: 100%;
         overflow: hidden;
     }
+
+    /* Compact styling for the share UI to reduce spacing */
+    .share-section .setting-row {
+        gap: 6px;
+        align-items: flex-start;
+    }
+    .share-section .ui-label { font-size: 0.78rem; color: var(--text-muted); }
+    #share-status.status-good { color: #2e7d32; }
+    #share-status.status-warning { color: #f57f17; }
+    #share-status.status-bad { color: #c62828; }
     .checkbox-item .ui-label {
         margin-left: 8px;      /* Only adds spacing when next to a checkbox */
     }

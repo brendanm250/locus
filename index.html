@@ -82,7 +82,7 @@
                             <button id="btn-load-sample" onclick="loadSelectedSample()">Load Sample Data</button>
                         </div>
 
-                        <div style="margin-top:16px;border-top:1px solid var(--border-strong);padding-top:12px">
+                        <div class="share-section" style="margin-top:16px;border-top:1px solid var(--border-strong);padding-top:12px">
                             <label class="ui-label">Share / Export</label>
                             <div class="setting-row" style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
                                 <div style="display:flex;flex-direction:column;align-items:flex-start;">
@@ -103,7 +103,7 @@
                             </div>
                             <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
                                 <div style="display:flex;flex-direction:column;">
-                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Simplify (RDP epsilon, 0 disables)</label>
+                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Simplify (epsilon meters, 0 disables)</label>
                                     <input id="share-simplify-eps" type="number" step="0.1" value="0" style="width:100px;" title="RDP epsilon (0 disables)">
                                 </div>
                                 <div style="display:flex;flex-direction:column;">
@@ -119,6 +119,7 @@
                                 <input id="share-url" readonly placeholder="Generated share URL will appear here" style="flex:1;" />
                                 <div id="qr-container" style="width:64px;height:64px"></div>
                             </div>
+                            <div id="share-status" style="margin-top:6px;font-size:12px;color:var(--text-muted)"></div>
                         </div>
                     </div>
 

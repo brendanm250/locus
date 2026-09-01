@@ -82,21 +82,15 @@ function generateShareURLFromUI() {
     // Decide which indices to include
     let indices = [];
     if (simplifyEps > 0) {
-        // Build points for RDP
-        const pts = appState.processedData.map(pt => [pt._lon, pt._lat]);
-        const simplified = rdp(pts, simplifyEps);
-        // Map simplified points back to original indices (first match)
-        const used = new Set();
-        simplified.forEach(sp => {
-            for (let i = 0; i < pts.length; i++) {
-                if (used.has(i)) continue;
-                if (Math.abs(pts[i][0] - sp[0]) < 1e-9 && Math.abs(pts[i][1] - sp[1]) < 1e-9) {
-                    indices.push(i);
-                    used.add(i);
-                    break;
-                }
-            }
-        });
+        // Convert coordinates to meters using mean latitude to make epsilon meters intuitive
+        const meanLat = appState.processedData.reduce((s, p) => s + p._lat, 0) / appState.processedData.length;
+        const meanLatRad = meanLat * Math.PI / 180;
+        const metersPerDegLat = 111132.92; // approx
+        const metersPerDegLon = 111319.49 * Math.cos(meanLatRad);
+
+        const ptsMeters = appState.processedData.map(pt => [pt._lon * metersPerDegLon, pt._lat * metersPerDegLat]);
+        const simplifiedIdx = rdpIndices(ptsMeters, simplifyEps);
+        indices = simplifiedIdx.slice();
         // Optionally further decimate the simplified set
         if (keepEvery > 1) indices = indices.filter((_, i) => i % keepEvery === 0);
     } else {
@@ -153,6 +147,36 @@ function generateShareURLFromUI() {
             console.warn('QR generation failed', e);
             qrEl.textContent = 'QR error';
         }
+    }
+
+    // Update share status indicator
+    try {
+        const statusEl = document.getElementById('share-status');
+        if (statusEl) {
+            const urlLen = shareUrl.length;
+            const compressedLen = compressed.length;
+            const qrOk = compressedLen < 1200;
+            let cls = 'status-good';
+            let msg = `Compressed: ${compressedLen} chars · URL: ${urlLen} chars.`;
+            if (!qrOk) msg += ' QR: too large.';
+
+            // thresholds
+            if (urlLen <= 2000) {
+                cls = 'status-good';
+                msg += ' URL size: good.';
+            } else if (urlLen <= 8000) {
+                cls = 'status-warning';
+                msg += ' URL size: may be long for some clients.';
+            } else {
+                cls = 'status-bad';
+                msg += ' URL size: very large — consider more downsampling, increasing epsilon, or disabling columns.';
+            }
+
+            statusEl.className = cls;
+            statusEl.innerText = msg;
+        }
+    } catch (e) {
+        console.warn('Failed to update share status UI', e);
     }
 
     console.log('Share URL length:', shareUrl.length);
@@ -241,6 +265,51 @@ function rdp(points, epsilon) {
     }
 
     return recurse(points);
+}
+
+// Return indices of points to keep after RDP (points are [x,y] in meters)
+function rdpIndices(points, epsilon) {
+    const n = points.length;
+    if (n < 3) return Array.from({length: n}, (_, i) => i);
+
+    function perpendicularDistanceIdx(idx, startIdx, endIdx) {
+        const point = points[idx];
+        const lineStart = points[startIdx];
+        const lineEnd = points[endIdx];
+        const x0 = point[0], y0 = point[1];
+        const x1 = lineStart[0], y1 = lineStart[1];
+        const x2 = lineEnd[0], y2 = lineEnd[1];
+        const num = Math.abs((y2 - y1)*x0 - (x2 - x1)*y0 + x2*y1 - y2*x1);
+        const den = Math.hypot(y2 - y1, x2 - x1);
+        return den === 0 ? Math.hypot(x0 - x1, y0 - y1) : num / den;
+    }
+
+    const keep = new Uint8Array(n); // 0/1
+
+    function recurse(startIdx, endIdx) {
+        let maxDist = 0;
+        let index = -1;
+        for (let i = startIdx + 1; i < endIdx; i++) {
+            const d = perpendicularDistanceIdx(i, startIdx, endIdx);
+            if (d > maxDist) { maxDist = d; index = i; }
+        }
+        if (maxDist > epsilon && index !== -1) {
+            recurse(startIdx, index);
+            recurse(index, endIdx);
+        } else {
+            // nothing to add
+        }
+    }
+
+    // Always keep endpoints
+    keep[0] = 1;
+    keep[n-1] = 1;
+    recurse(0, n-1);
+
+    // Collect indices in order
+    const out = [];
+    for (let i = 0; i < n; i++) if (keep[i]) out.push(i);
+    return out;
 }
 
 function reducePrecisionRows(headers, rows) {
