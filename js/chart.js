@@ -41,7 +41,6 @@ function initializeChartListeners() {
     chart.off('dataZoom');
 
     chart.on('dataZoom', (params) => {
-        if (appState.isUpdating) return;
         const batch = params.batch ? params.batch[0] : params;
 
         // ECharts slider startValue/endValue often correspond to the index
@@ -352,7 +351,7 @@ function renderCharts() {
 }
 
 function updateChartHighlight() {
-    if (appState.isUpdating || !appState.processedData.length) return;
+    if (!appState.processedData.length) return;
 
         if (mapOverlayTimer) return;
 
