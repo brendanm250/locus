@@ -2,11 +2,11 @@
 
 // Functions
 function addTerrain() {
-    if (map.getSource('mapbox-dem')) return; // Already exists
+    if (!map || map.getSource('mapbox-dem')) return; // Already exists or map not ready
 
     map.addSource('mapbox-dem', {
         'type': 'raster-dem',
-        'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+        'url': 'mapbox://mapbox.terrain-rgb',
         'tileSize': 512,
         'maxzoom': 14
     });
@@ -208,13 +208,25 @@ function flyToCenter(options) {
     );
 }
 
-function initializeMap() {
+function getMapboxToken() {
+    if (typeof CONFIG_LOCAL !== 'undefined' && CONFIG_LOCAL.MAPBOX_TOKEN && CONFIG_LOCAL.MAPBOX_TOKEN.trim()) {
+        return CONFIG_LOCAL.MAPBOX_TOKEN.trim();
+    }
+    if (typeof CONFIG !== 'undefined' && CONFIG.MAPBOX_TOKEN && CONFIG.MAPBOX_TOKEN.trim()) {
+        return CONFIG.MAPBOX_TOKEN.trim();
+    }
+    return '';
+}
 
-    if (typeof CONFIG === 'undefined' || !CONFIG.MAPBOX_TOKEN) {
-        alert("Error: config.js not found or MAPBOX_TOKEN missing."); // Popup
+function initializeMap() {
+    const token = getMapboxToken();
+
+    if (!token) {
+        alert("Error: No Mapbox access token found. Please configure a token in config.js or config.local.js.");
+        return;
     }
 
-    mapboxgl.accessToken = CONFIG.MAPBOX_TOKEN;
+    mapboxgl.accessToken = token;
 
     map = new mapboxgl.Map({
         container: 'map',

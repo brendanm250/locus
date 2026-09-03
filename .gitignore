@@ -1,0 +1,11 @@
+# Local configuration overrides
+js/config.local.js
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE directories
+.vscode/
+.idea/
+*.swp
