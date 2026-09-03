@@ -301,16 +301,16 @@ function visualizeData(skipDom = false) {
 
     document.getElementById('time-slider').max = appState.processedData.length - 1;
 
-    lats = Array.from(appState.processedData, (pt) => pt._lat)
-    lons = Array.from(appState.processedData, (pt) => pt._lon)
-    appState.dataStats.maxLat = Math.max(...lats)
-    appState.dataStats.minLat = Math.min(...lats)
-    appState.dataStats.maxLon = Math.max(...lons)
-    appState.dataStats.minLon = Math.min(...lons)
+    const lats = Array.from(appState.processedData, (pt) => pt._lat);
+    const lons = Array.from(appState.processedData, (pt) => pt._lon);
+    appState.dataStats.maxLat = Math.max(...lats);
+    appState.dataStats.minLat = Math.min(...lats);
+    appState.dataStats.maxLon = Math.max(...lons);
+    appState.dataStats.minLon = Math.min(...lons);
     appState.dataStats.centerCoords = [
         (appState.dataStats.maxLon + appState.dataStats.minLon)/2,
         (appState.dataStats.maxLat + appState.dataStats.minLat)/2,
-    ]
+    ];
 
     if (appState.processedData.length > 0) {
         flyToCenter({
