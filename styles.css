@@ -743,8 +743,3 @@
     #offline-indicator .connection-status-dot {
         margin: 0;
     }
-
-    /* input:not([class]), select:not([class]), label:not([class]) {
-        outline: 2px solid red !important;
-    } */
-
