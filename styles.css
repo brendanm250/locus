@@ -573,47 +573,6 @@
 
 
 
-    /* Tooltip Specific Styles */
-    .tooltip-header {
-        font-size: 11px;
-        color: var(--text-muted);
-        margin-bottom: 4px;
-        font-family: var(--font-mono);
-    }
-
-    .tooltip-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .tooltip-row {
-        color: var(--text-dim);
-        font-size: 12px;
-    }
-
-    .tooltip-row.active {
-        font-weight: bold;
-        color: var(--text-bright);
-        font-size: 13px;
-    }
-
-    .tooltip-dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 5px;
-    }
-
-    .tooltip-value {
-        text-align: right;
-        font-family: var(--font-mono);
-        padding-left: 15px;
-    }
-
-
-
-
     /* Modals */
     #modal-overlay {
         position: fixed;
@@ -701,12 +660,7 @@
 
 
 
-    /* Offline Overlay */
-    .offline-icon {
-        font-size: 3rem;
-        filter: drop-shadow(0 0 10px var(--accent-glow));
-    }
-
+    /* Offline Indicator */
     .connection-status-dot {
         width: 12px;
         height: 12px;
@@ -731,11 +685,13 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        border-color: #ff4444;
-        background: rgba(255, 0, 0, 0.1);
+        border: 1px solid #ff4444;
+        border-radius: 20px;
+        background: rgba(255, 0, 0, 0.15);
+        backdrop-filter: blur(var(--panel-blur));
+        -webkit-backdrop-filter: blur(var(--panel-blur));
     }
 
-    #initial-offline-overlay[hidden],
     #offline-indicator[hidden] {
         display: none !important;
     }
