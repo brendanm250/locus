@@ -9,3 +9,8 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
