@@ -325,7 +325,7 @@ function visualizeData(skipDom = false) {
 
     // Simplify Data for Map Trace
     appState.mapPathData = appState.processedData;
-    appState.chartViewRange = [0, appState.processedData.length]
+    appState.chartViewRange = [0, appState.processedData.length];
 
     renderTable(appState.rawData, appState.headers);
     calculatePathColors();
@@ -335,7 +335,7 @@ function visualizeData(skipDom = false) {
     populateShareColumnOptions(appState.headers);
 
     revealDataControls();
-    initializeChartUI()
+    initializeChartUI();
     renderCharts();
     collapseSetupSections();
 }
@@ -402,7 +402,7 @@ function attachJumpEvents() {
 
     // Update cache when data loads or camera moves
     JumpEvent.subscribe(function updateScreenCoords(idx) {
-        if(idx === 0) updateScreenCoordsCache() // Initial load
+        if (idx === 0) updateScreenCoordsCache(); // Initial load
     });
 }
 

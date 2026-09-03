@@ -35,8 +35,6 @@ function addTerrain() {
             if (!startTime) startTime = currentTime;
             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / duration, 1);
-
-            // const ease = 1/(1 + Math.exp(-15 * (progress - 0.5))); // Sigmoid easing
             const ease = progress < 0.5 ? 4 * Math.pow(progress, 3) : 1 - Math.pow(-2 * progress + 2, 3) / 2; // Smoothstep easing
 
             let currentScale = Math.max(0, ease * targetScale);
@@ -109,8 +107,6 @@ function applyTerrainCorrection() {
 
     // Calculate the lifted points
     appState.processedData.forEach(pt => {
-        // if (pt._groundAlt !== null) return; // Already calculated
-
         const exaggeratedGroundAlt = map.queryTerrainElevation([pt._lon, pt._lat]);
         if (exaggeratedGroundAlt == null) return;
 
@@ -259,7 +255,7 @@ function initializeMap() {
 function setupMapEventListeners() {
     map.on('load', () => {
         appState.effectiveScale = getEffectiveScale();
-        addTerrain()
+        addTerrain();
     });
     map.on('pitch', () => {
         appState.effectiveScale = getEffectiveScale();
@@ -272,15 +268,14 @@ function setupMapEventListeners() {
         updateChartHighlight();
     });
     map.on('moveend', () => {
-        applyTerrainCorrection()
+        applyTerrainCorrection();
         appState.isCameraMoving = false;
         updateScreenCoordsCache();
         renderMapLayers();
     });
     map.on('zoom', () => {
-        applyTerrainCorrection()
+        applyTerrainCorrection();
         renderMapLayers();
-
     });
     map.on('mousemove', (e) => {
         // Skip calculations if the data isn't ready or we are actively dragging the map
@@ -451,13 +446,13 @@ class CustomCenterControl {
 
         this._container.onclick = () => {
             flyToCenter({
-            padding: {top: 50, bottom: 50, left: 100, right: 50},
-            bearing: this._map.getBearing(),
-            pitch: this._map.getPitch(),
-            curve: 1,
-            duration: 2000
-        });
-        }
+                padding: {top: 50, bottom: 50, left: 100, right: 50},
+                bearing: this._map.getBearing(),
+                pitch: this._map.getPitch(),
+                curve: 1,
+                duration: 2000
+            });
+        };
 
         return this._container;
     }

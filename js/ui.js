@@ -123,7 +123,7 @@ function calculatePathColors() {
 
 function updateScale(val) {
     appState.altScale = parseFloat(val);
-    appState.effectiveScale = getEffectiveScale()
+    appState.effectiveScale = getEffectiveScale();
     document.getElementById('scale-val').innerText = appState.altScale.toFixed(2) + "x";
     updateScreenCoordsCache();
     syncTerrainToPitch();

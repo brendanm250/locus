@@ -62,7 +62,7 @@ function modifyRGBa(RGBa, lFactor, cFactor, hRotate, aFactor=0) {
     let newColor = chroma.oklch(l*(1+lFactor), c*(1+cFactor), h+hRotate).rgb();
 
     if (RGBa.length === 3 && aFactor === 0) {
-        return newColor
+        return newColor;
     }
     else {
         const alpha = RGBa[3] ? RGBa[3] : 255;

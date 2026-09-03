@@ -111,7 +111,6 @@ function buildChartLayout(xAxisMode, traceCount) {
         { // Main chart
             type: 'value',
             gridIndex: 0,
-            // name: appState.xAxisMode === 'distance' ? 'Distance (km)' : 'Time',
             nameLocation: 'middle',
             nameGap: 35,
             axisLabel: { formatter: formatXAxisValue, color: '#aaa' },

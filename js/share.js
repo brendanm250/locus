@@ -228,45 +228,6 @@ function decompressWithPako(b64url) {
     return inflated;
 }
 
-// Geometric simplification: Ramer-Douglas-Peucker on [lon,lat] array
-function rdp(points, epsilon) {
-    if (points.length < 3) return points.slice();
-    const sq = (p, q) => {
-        const dx = p[0] - q[0];
-        const dy = p[1] - q[1];
-        return dx*dx + dy*dy;
-    };
-
-    function perpendicularDistance(point, lineStart, lineEnd) {
-        const x0 = point[0], y0 = point[1];
-        const x1 = lineStart[0], y1 = lineStart[1];
-        const x2 = lineEnd[0], y2 = lineEnd[1];
-        const num = Math.abs((y2 - y1)*x0 - (x2 - x1)*y0 + x2*y1 - y2*x1);
-        const den = Math.hypot(y2 - y1, x2 - x1);
-        return den === 0 ? Math.hypot(x0 - x1, y0 - y1) : num / den;
-    }
-
-    function recurse(pts) {
-        let maxDist = 0;
-        let index = -1;
-        const start = pts[0];
-        const end = pts[pts.length - 1];
-        for (let i = 1; i < pts.length - 1; i++) {
-            const d = perpendicularDistance(pts[i], start, end);
-            if (d > maxDist) { maxDist = d; index = i; }
-        }
-        if (maxDist > epsilon) {
-            const left = recurse(pts.slice(0, index + 1));
-            const right = recurse(pts.slice(index));
-            return left.slice(0, -1).concat(right);
-        } else {
-            return [start, end];
-        }
-    }
-
-    return recurse(points);
-}
-
 // Return indices of points to keep after RDP (points are [x,y] in meters)
 function rdpIndices(points, epsilon) {
     const n = points.length;

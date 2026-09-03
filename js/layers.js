@@ -137,10 +137,9 @@ const LayerManifest = [
         ],
         getData: (data) => generateRenderSegments(data, [
             {
-                id: 'base-path', //
-                condition: (pt ,index) => true,
+                id: 'base-path',
+                condition: (pt, index) => true,
                 getColor: (pt, index) => modifyRGBa(appState.pathColors[index], 0, -0.55, 0, -0.75),
-                // getColor: (pt, index) => [ appState.pathColors[index][0], appState.pathColors[index][1], appState.pathColors[index][2], 80]
             },
             {
                 id: 'chart-highlight',
