@@ -153,7 +153,6 @@ function launchApp() {
         screenCoordsCache: [],
         isCameraMoving: false,
         chartViewRange: null,
-        highlightedDataCache: [],
         liftedSegments: [],
         showCorrections: false,
         showGroundTrack: true,
