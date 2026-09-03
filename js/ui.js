@@ -191,7 +191,7 @@ function toggleChart() {
 
     // Crucial: ECharts needs to know if its container changed size
     setTimeout(() => {
-        if (typeof chart !== 'undefined') chart.resize();
+        if (chart) chart.resize();
     }, 250);
 }
 
@@ -203,7 +203,7 @@ function toggleChartSidebar() {
     // We resize multiple times during the transition for smoothness.
     let count = 0;
     const interval = setInterval(() => {
-        if (typeof chart !== 'undefined') chart.resize();
+        if (chart) chart.resize();
         count++;
         if (count > 30) clearInterval(interval);
     }, 10);
@@ -216,7 +216,7 @@ function initializeChartUI() {
     chartDiv.style.display = 'block';
 
     requestAnimationFrame(() => {
-        if (typeof chart !== 'undefined') chart.resize();
+        if (chart) chart.resize();
     });
 }
 

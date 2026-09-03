@@ -310,7 +310,7 @@ function setupMapEventListeners() {
             JumpEvent.jumpToTime(winnerIndex, false);
         }
     });
-    window.addEventListener('resize', () => { map.resize(); chart.resize(); });
+    window.addEventListener('resize', () => { if (map) map.resize(); if (chart) chart.resize(); });
 }
 
 /// UI Elements
