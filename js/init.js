@@ -17,6 +17,24 @@ window.addEventListener('online', () => {
     liveIndicator.setAttribute('hidden', '');
 });
 
+const FALLBACK_SAMPLES = [
+    { name: 'Driving', path: 'sample_data/Driving.csv' },
+    { name: 'Flying', path: 'sample_data/Flying.csv' },
+    { name: 'Skiing', path: 'sample_data/Skiing.csv' }
+];
+
+function populateSampleFallback() {
+    const select = document.getElementById('sample-data-select');
+    if (!select) return;
+    select.innerHTML = '';
+    FALLBACK_SAMPLES.forEach(file => {
+        const option = document.createElement('option');
+        option.value = file.path;
+        option.textContent = file.name;
+        select.appendChild(option);
+    });
+}
+
 // Run this right away inside your launchApp() function so the list is ready
 function populateSampleDataDropdown() {
     const owner = 'brendanm250'; // e.g., 'vcervewrv'
@@ -38,7 +56,7 @@ function populateSampleDataDropdown() {
             const csvFiles = files.filter(file => file.name.endsWith('.csv'));
 
             if (csvFiles.length === 0) {
-                select.innerHTML = '<option value="">No samples found</option>';
+                populateSampleFallback();
                 return;
             }
 
@@ -52,8 +70,8 @@ function populateSampleDataDropdown() {
             });
         })
         .catch(error => {
-            console.error('Error fetching file list:', error);
-            document.getElementById('sample-data-select').innerHTML = '<option value="">Failed to load list</option>';
+            console.warn('GitHub API unavailable, using local sample data list:', error);
+            populateSampleFallback();
         });
 }
 
@@ -82,10 +100,18 @@ function loadSelectedSample() {
         return;
     }
 
-    fetch(downloadUrl)
-        .then(response => {
-            if (!response.ok) throw new Error('Failed to fetch file content');
-            return response.text();
+    const fetchCsv = (url) => fetch(url).then(response => {
+        if (!response.ok) throw new Error('Failed to fetch file content');
+        return response.text();
+    });
+
+    fetchCsv(downloadUrl)
+        .catch(err => {
+            if (!downloadUrl.startsWith('http')) {
+                const githubFallback = `https://raw.githubusercontent.com/brendanm250/locus/main/${downloadUrl}`;
+                return fetchCsv(githubFallback);
+            }
+            throw err;
         })
         .then(csvText => {
             Papa.parse(csvText, {
