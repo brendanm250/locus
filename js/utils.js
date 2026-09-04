@@ -40,6 +40,7 @@ function formatMagnitude(val, sigFigs = 3) {
 }
 
 function formatTime(seconds) {
+    if (seconds === null || seconds === undefined || isNaN(seconds)) return '--';
     if (seconds < 60) return seconds.toFixed(1) + 's';
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
@@ -49,6 +50,7 @@ function formatTime(seconds) {
 }
 
 function formatDistance(km) {
+    if (km === null || km === undefined || isNaN(km)) return '--';
     if (km < 1) return (km * 1000).toFixed(0) + 'm';
     return km.toFixed(2) + 'km';
 }

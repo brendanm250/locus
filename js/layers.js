@@ -241,6 +241,7 @@ function generateRenderSegments(data, rules) {
 
 function renderMapLayers(forceRebuild = false) {
     if (!appState.mapPathData || !appState.mapPathData.length) return;
+    if (!deckOverlay) return;
 
     const effectiveScale = appState.effectiveScale;
     const zoomOffset = getBillboardOffset();

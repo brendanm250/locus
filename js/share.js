@@ -1,3 +1,21 @@
+// share.js
+let currentShareUrl = '';
+
+// Close QR modal when clicking outside the card on the dialog backdrop
+document.addEventListener('DOMContentLoaded', () => {
+    const dialog = document.getElementById('qr-dialog');
+    if (dialog) {
+        dialog.addEventListener('click', (e) => {
+            const rect = dialog.getBoundingClientRect();
+            const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+                rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
+            if (!isInDialog) {
+                dialog.close();
+            }
+        });
+    }
+});
+
 function generateShareURL() {
     generateShareURLFromUI();
 }
@@ -128,26 +146,11 @@ function generateShareURLFromUI() {
 
     const baseUrl = window.location.href.split('#')[0];
     const shareUrl = `${baseUrl}#share=${prefix}${compressed}`;
+    currentShareUrl = shareUrl;
 
-    // Output to UI
-    const urlInput = document.getElementById('share-url');
-    if (urlInput) urlInput.value = shareUrl;
-
-    // Render QR only when payload is reasonably small
-    const qrEl = document.getElementById('qr-container');
-    if (qrEl) {
-        qrEl.innerHTML = '';
-        try {
-            if (compressed.length < 1200) {
-                new QRCode(qrEl, { text: shareUrl, width: 128, height: 128 });
-            } else {
-                qrEl.textContent = 'Payload too large for QR';
-            }
-        } catch (e) {
-            console.warn('QR generation failed', e);
-            qrEl.textContent = 'QR error';
-        }
-    }
+    // Output to UI / modal
+    const modalUrlInput = document.getElementById('qr-dialog-url');
+    if (modalUrlInput) modalUrlInput.value = shareUrl;
 
     // Update share status indicator
     try {
@@ -155,10 +158,8 @@ function generateShareURLFromUI() {
         if (statusEl) {
             const urlLen = shareUrl.length;
             const compressedLen = compressed.length;
-            const qrOk = compressedLen < 1200;
             let cls = 'status-good';
             let msg = `Compressed: ${compressedLen} chars · URL: ${urlLen} chars.`;
-            if (!qrOk) msg += ' QR: too large.';
 
             // thresholds
             if (urlLen <= 2000) {
@@ -180,23 +181,207 @@ function generateShareURLFromUI() {
     }
 
     console.log('Share URL length:', shareUrl.length);
+    return shareUrl;
 }
 
 function copyShareURL() {
-    const urlInput = document.getElementById('share-url');
-    if (!urlInput || !urlInput.value) return;
+    if (!currentShareUrl) {
+        generateShareURLFromUI();
+    }
+    if (!currentShareUrl) return;
+
+    const copyBtn = document.getElementById('btn-copy-share-url');
     try {
-        navigator.clipboard.writeText(urlInput.value);
-        // small visual feedback
-        const old = urlInput.value;
-        urlInput.value = 'Copied!';
-        setTimeout(() => { urlInput.value = old; }, 1200);
+        navigator.clipboard.writeText(currentShareUrl).then(() => {
+            if (copyBtn) {
+                const old = copyBtn.innerText;
+                copyBtn.innerText = 'Copied!';
+                setTimeout(() => { copyBtn.innerText = old; }, 1200);
+            }
+        }).catch(err => {
+            console.warn('Clipboard write failed, attempting prompt fallback', err);
+            prompt('Copy share URL:', currentShareUrl);
+        });
     } catch (e) {
         console.warn('Clipboard copy failed', e);
-        // fallback: select the input so user can copy manually
-        urlInput.select();
-        alert('Press Ctrl+C to copy the link');
+        prompt('Copy share URL:', currentShareUrl);
     }
+}
+
+function generateQRPayloadUrl() {
+    if (!appState.processedData || !appState.processedData.length) return null;
+
+    // If current share URL already fits in a QR code (<= 2000 chars), use it directly!
+    if (currentShareUrl && currentShareUrl.length <= 2000) {
+        return { url: currentShareUrl, isOptimized: false };
+    }
+
+    // Otherwise generate a QR-optimized track (~60 points of mapped telemetry columns)
+    const mappedCols = Object.values(appState.mapping || {});
+    const headers = mappedCols.length > 0 ? mappedCols : appState.headers.slice(0, 4);
+    const targetPoints = 60;
+    const step = Math.max(1, Math.ceil(appState.processedData.length / targetPoints));
+
+    const rows = [];
+    for (let i = 0; i < appState.processedData.length; i += step) {
+        const pt = appState.processedData[i];
+        rows.push(headers.map(h => {
+            let v = pt[h];
+            if (typeof v === 'number') {
+                if (h === appState.mapping.lat || h === appState.mapping.lon) return Math.round(v * 1e5) / 1e5;
+                if (h === appState.mapping.alt) return Math.round(v * 10) / 10;
+                if (h === appState.mapping.time) return Math.round(v);
+            }
+            return v;
+        }));
+    }
+
+    const payload = { headers, units: appState.units || {}, rows };
+    const jsonString = JSON.stringify(payload);
+    const compressed = LZString.compressToEncodedURIComponent(jsonString);
+    const baseUrl = window.location.href.split('#')[0];
+    return {
+        url: `${baseUrl}#share=l:${compressed}`,
+        isOptimized: true,
+        points: rows.length
+    };
+}
+
+function openQRModal() {
+    if (!appState.processedData || !appState.processedData.length) {
+        alert('Please load data before sharing via QR code.');
+        return;
+    }
+
+    if (!currentShareUrl) {
+        generateShareURLFromUI();
+    }
+
+    const qrData = generateQRPayloadUrl();
+    if (!qrData) return;
+
+    const dialog = document.getElementById('qr-dialog');
+    const container = document.getElementById('qr-code-modal-container');
+    const urlInput = document.getElementById('qr-dialog-url');
+    const statusEl = document.getElementById('qr-modal-status');
+
+    if (!dialog || !container) return;
+
+    if (urlInput) urlInput.value = qrData.url;
+    if (statusEl) {
+        statusEl.textContent = qrData.isOptimized
+            ? `QR code generated (${qrData.points} points optimized for camera scanning).`
+            : 'Scan with mobile camera or copy image.';
+    }
+
+    container.innerHTML = '';
+    try {
+        new QRCode(container, {
+            text: qrData.url,
+            width: 300,
+            height: 300,
+            correctLevel: QRCode.CorrectLevel.L
+        });
+    } catch (err) {
+        console.error('Failed to generate modal QR:', err);
+        container.textContent = 'Unable to generate QR code for this payload.';
+    }
+
+    dialog.showModal();
+}
+
+function closeQRModal() {
+    const dialog = document.getElementById('qr-dialog');
+    if (dialog && dialog.open) {
+        dialog.close();
+    }
+}
+
+function copyShareURLFromModal() {
+    const urlInput = document.getElementById('qr-dialog-url');
+    const url = (urlInput && urlInput.value) || currentShareUrl;
+    if (!url) return;
+
+    const btn = document.getElementById('btn-copy-modal-url');
+    navigator.clipboard.writeText(url).then(() => {
+        if (btn) {
+            const old = btn.innerText;
+            btn.innerText = 'Copied!';
+            setTimeout(() => { btn.innerText = old; }, 1200);
+        }
+    }).catch(err => {
+        console.warn('Modal URL copy failed', err);
+        if (urlInput) urlInput.select();
+    });
+}
+
+function downloadQRCode() {
+    const container = document.getElementById('qr-code-modal-container');
+    if (!container) return;
+
+    const canvas = container.querySelector('canvas');
+    const img = container.querySelector('img');
+    let dataUrl = null;
+
+    if (canvas) {
+        dataUrl = canvas.toDataURL('image/png');
+    } else if (img && img.src) {
+        dataUrl = img.src;
+    }
+
+    if (!dataUrl) {
+        const statusEl = document.getElementById('qr-modal-status');
+        if (statusEl) statusEl.textContent = 'QR image not ready to download.';
+        return;
+    }
+
+    const a = document.createElement('a');
+    a.download = 'locus-share-qr.png';
+    a.href = dataUrl;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    const statusEl = document.getElementById('qr-modal-status');
+    if (statusEl) statusEl.textContent = 'QR code downloaded!';
+}
+
+function copyQRCodeImage() {
+    const container = document.getElementById('qr-code-modal-container');
+    const statusEl = document.getElementById('qr-modal-status');
+    if (!container) return;
+
+    const canvas = container.querySelector('canvas');
+    if (!canvas) {
+        if (statusEl) statusEl.textContent = 'Canvas not available to copy.';
+        return;
+    }
+
+    canvas.toBlob(blob => {
+        if (!blob) {
+            if (statusEl) statusEl.textContent = 'Failed to generate QR image blob.';
+            return;
+        }
+        if (!navigator.clipboard || !navigator.clipboard.write) {
+            if (statusEl) statusEl.textContent = 'Clipboard image copying not supported on this browser.';
+            return;
+        }
+
+        navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+        ]).then(() => {
+            if (statusEl) statusEl.textContent = 'QR image copied to clipboard!';
+            const btn = document.getElementById('btn-copy-qr-img');
+            if (btn) {
+                const old = btn.innerText;
+                btn.innerText = 'Copied!';
+                setTimeout(() => { btn.innerText = old; }, 1200);
+            }
+        }).catch(err => {
+            console.warn('Failed to copy QR image:', err);
+            if (statusEl) statusEl.textContent = 'Could not copy image to clipboard.';
+        });
+    });
 }
 
 // Pako (gzip) helpers with URL-safe base64

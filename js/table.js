@@ -21,12 +21,12 @@ function renderTable(data, headers) {
 
 const highlightTableRow = (function() {
     let lastHighlightedRow = null;
-    const tablePanel = document.getElementById('table-panel'); // Cache the container ref
 
     return function(index) {
         // --- VISIBILITY GUARD ---
         // If the table isn't flex (visible), don't waste cycles on DOM manipulation
-        if (tablePanel.style.display !== 'flex') return;
+        const tablePanel = document.getElementById('table-panel');
+        if (!tablePanel || tablePanel.style.display !== 'flex') return;
 
         // 1. O(1) removal
         if (lastHighlightedRow) {

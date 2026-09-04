@@ -79,12 +79,13 @@ function populateShareColumnOptions(headers) {
     const select = document.getElementById('share-columns');
     if (!select) return;
     select.innerHTML = '';
+    const mapped = Object.values(appState.mapping || {});
     headers.forEach(h => {
         const opt = document.createElement('option');
         opt.value = h;
         opt.textContent = h;
-        // Pre-select common telemetry columns if present
-        if (['Time', 'time', 'Latitude', 'latitude', 'Longitude', 'longitude', 'Altitude', 'alt'].includes(h)) {
+        // Pre-select active mapped telemetry columns or common defaults
+        if (mapped.includes(h) || ['Time', 'time', 'Latitude', 'latitude', 'Longitude', 'longitude', 'Altitude', 'alt'].includes(h)) {
             opt.selected = true;
         }
         select.appendChild(opt);

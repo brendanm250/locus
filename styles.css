@@ -591,6 +591,115 @@
         border: 1px solid var(--border-strong);
     }
 
+    /* QR Share Modal */
+    #qr-dialog {
+        border: none;
+        background: transparent;
+        padding: 0;
+        max-width: 90vw;
+        max-height: 90vh;
+        outline: none;
+    }
+    #qr-dialog::backdrop {
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+    .qr-dialog-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-std);
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+        width: 350px;
+    }
+    .qr-dialog-header {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--panel-border);
+        padding-bottom: 8px;
+    }
+    .qr-dialog-header h3 {
+        margin: 0;
+    }
+    .qr-close-btn {
+        background: transparent;
+        border: none;
+        font-size: 1.1rem;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        line-height: 1;
+    }
+    .qr-close-btn:hover {
+        color: var(--text-bright);
+        background: var(--bg-element);
+    }
+    .qr-dialog-body {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+    #qr-code-modal-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 12px;
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    #qr-code-modal-container img, #qr-code-modal-container canvas {
+        display: block;
+        max-width: 100%;
+        height: auto;
+    }
+    .qr-modal-btn-row {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+    }
+    .qr-modal-btn-row button {
+        flex: 1;
+    }
+    .qr-link-box {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .qr-link-input-row {
+        display: flex;
+        gap: 6px;
+        width: 100%;
+    }
+    .qr-link-input-row input {
+        flex: 1;
+        background: var(--bg-element);
+        border: 1px solid var(--border-strong);
+        color: var(--text-bright);
+        padding: 5px 8px;
+        border-radius: 4px;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        margin-bottom: 0;
+    }
+    .qr-modal-status-text {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        text-align: center;
+        min-height: 1.2em;
+    }
+
 
 
 

@@ -29,7 +29,7 @@ function addTerrain() {
         let startTime = null;
         const targetScale = appState.effectiveScale;
 
-        const slider = document.querySelector('input[type="range"][oninput*="updateScale"]');
+        const slider = document.getElementById('scale-slider');
 
         function animateTerrain(currentTime) {
             if (!startTime) startTime = currentTime;
@@ -310,7 +310,10 @@ function setupMapEventListeners() {
             JumpEvent.jumpToTime(winnerIndex, false);
         }
     });
-    window.addEventListener('resize', () => { if (map) map.resize(); if (chart) chart.resize(); });
+    window.addEventListener('resize', () => {
+        if (typeof map !== 'undefined' && map) map.resize();
+        if (typeof chart !== 'undefined' && chart) chart.resize();
+    });
 }
 
 /// UI Elements
