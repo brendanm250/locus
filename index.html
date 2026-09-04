@@ -179,12 +179,14 @@
 
                             <div class="toggle-row">
                                 <span class="ui-label">Terrain Corrections:</span>
-                                <input type="checkbox" id="show-corrections" onchange="toggleCorrections(this.checked)" unchecked>
+                                <input type="checkbox" id="show-corrections" onchange="toggleCorrections(this.checked)">
                             </div>
 
                             <div class="setting-row">
                                 <label class="ui-label">Color Path By</label>
-                                <select id="color-select" onchange="updateColorBy(this.value)">...</select>
+                                <select id="color-select" onchange="updateColorBy(this.value)">
+                                    <option value="none">None</option>
+                                </select>
                             </div>
 
                             <div id="gradient-container" style="display:none;">
