@@ -35,6 +35,31 @@
     </div>
 </div>
 
+<!-- Popup modal for enlarged QR code sharing -->
+<dialog id="qr-dialog">
+    <div class="qr-dialog-card">
+        <div class="qr-dialog-header">
+            <h3>Share via QR Code</h3>
+            <button type="button" class="qr-close-btn" onclick="closeQRModal()" aria-label="Close">✕</button>
+        </div>
+        <div class="qr-dialog-body">
+            <div id="qr-code-modal-container"></div>
+            <div class="qr-modal-btn-row">
+                <button type="button" onclick="downloadQRCode()" id="btn-download-qr">Download QR</button>
+                <button type="button" onclick="copyQRCodeImage()" id="btn-copy-qr-img">Copy QR Image</button>
+            </div>
+            <div class="qr-link-box">
+                <label class="ui-label" for="qr-dialog-url">Share Link</label>
+                <div class="qr-link-input-row">
+                    <input id="qr-dialog-url" readonly placeholder="Share link" />
+                    <button type="button" onclick="copyShareURLFromModal()" id="btn-copy-modal-url">Copy Link</button>
+                </div>
+            </div>
+            <div id="qr-modal-status" class="qr-modal-status-text"></div>
+        </div>
+    </div>
+</dialog>
+
 <!-- Main app container -->
 <div id="app-container">
     <div id="main-view">
@@ -110,12 +135,9 @@
                                 </div>
                             </div>
                             <div class="btn-row" style="margin-top:8px;">
-                                <button onclick="generateShareURLFromUI()">Generate Share URL</button>
-                                <button onclick="copyShareURL()">Copy URL</button>
-                            </div>
-                            <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
-                                <input id="share-url" readonly placeholder="Generated share URL will appear here" style="flex:1;" />
-                                <div id="qr-container" style="width:64px;height:64px"></div>
+                                <button type="button" onclick="generateShareURLFromUI()">Generate URL</button>
+                                <button type="button" onclick="copyShareURL()" id="btn-copy-share-url">Copy URL</button>
+                                <button type="button" onclick="openQRModal()" id="btn-open-qr">Show QR</button>
                             </div>
                             <div id="share-status" style="margin-top:6px;font-size:12px;color:var(--text-muted)"></div>
                         </div>
