@@ -7,7 +7,7 @@
     <title>Locus</title>
 
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet">
-    <link href="styles.css" rel="stylesheet" >
+    <link href="styles.css?v=6" rel="stylesheet" >
     <link rel="icon" type="image/png" href="logo.png">
 
     <script>
@@ -29,9 +29,15 @@
 <!-- Popup window for assigning CSV columns to data fields -->
 <div id="modal-overlay">
     <div id="mapper-modal">
-        <h3>Map CSV Columns</h3>
+        <div class="modal-header">
+            <h3>Map CSV Columns</h3>
+            <button type="button" class="modal-close-btn" onclick="closeMapper()" aria-label="Close">✕</button>
+        </div>
         <div id="mapper-rows"></div>
-        <button type="button" onclick="visualizeData()" class="btn-primary-full">Visualize Data</button>
+        <div class="modal-btn-row">
+            <button type="button" onclick="closeMapper()" class="btn-secondary">Cancel</button>
+            <button type="button" onclick="visualizeData()" class="btn-primary-full">Visualize Data</button>
+        </div>
     </div>
 </div>
 
@@ -104,45 +110,7 @@
                         <div class="btn-row">
                             <button type="button" id="btn-load-sample" onclick="loadSelectedSample()">Load Sample Data</button>
                         </div>
-
-                        <div class="share-section" style="margin-top:16px;border-top:1px solid var(--border-strong);padding-top:12px">
-                            <label class="ui-label">Share / Export</label>
-                            <div class="setting-row" style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
-                                <div style="display:flex;flex-direction:column;align-items:flex-start;">
-                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Downsample (keep every Nth point)</label>
-                                    <input id="share-downsample" type="number" min="1" step="1" value="10" style="width:80px;" title="Keep every Nth point" oninput="this.value = Math.max(1, Math.round(Number(this.value) || 1))">
-                                </div>
-                                <div style="display:flex;flex-direction:column;">
-                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Columns (hold Ctrl to multi-select)</label>
-                                    <select id="share-columns" multiple size="6" style="min-width:180px;max-height:140px;overflow:auto;"></select>
-                                </div>
-                                <div style="display:flex;flex-direction:column;gap:6px;">
-                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Compression</label>
-                                    <select id="share-compress" style="width:140px;">
-                                        <option value="lz">LZ (URL-safe)</option>
-                                        <option value="pako">gzip+base64 (denser)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
-                                <div style="display:flex;flex-direction:column;">
-                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Simplify (epsilon meters, 0 disables)</label>
-                                    <input id="share-simplify-eps" type="number" step="0.1" value="0" style="width:100px;" title="RDP epsilon (0 disables)">
-                                </div>
-                                <div style="display:flex;flex-direction:column;">
-                                    <label class="ui-label" style="font-size:12px;margin-bottom:4px;">Reduce precision</label>
-                                    <input id="share-reduce-precision" type="checkbox" checked>
-                                </div>
-                            </div>
-                            <div class="btn-row" style="margin-top:8px;">
-                                <button type="button" onclick="generateShareURLFromUI()">Generate URL</button>
-                                <button type="button" onclick="copyShareURL()" id="btn-copy-share-url">Copy URL</button>
-                                <button type="button" onclick="openQRModal()" id="btn-open-qr">Show QR</button>
-                            </div>
-                            <div id="share-status" style="margin-top:6px;font-size:12px;color:var(--text-muted)"></div>
-                        </div>
                     </div>
-
                 </div>
 
                 <div id="section-map" class="control-section">
@@ -170,11 +138,9 @@
                     </div>
                 </div>
 
-
-
                 <div id="data-dependent-controls" style="display: none;">
                     <div class="control-section">
-                        <div class="section-header" onclick="toggleSection(this)">Map Configuration</div>
+                        <div class="section-header" onclick="toggleSection(this)">Mapped Data Configuration</div>
                         <div class="section-content">
 
                             <div class="toggle-row">
@@ -194,6 +160,43 @@
                                 <div id="gradient-picker"></div>
                             </div>
 
+                        </div>
+                    </div>
+
+                    <div id="section-share" class="control-section collapsed">
+                        <div class="section-header" onclick="toggleSection(this)">Share & Export</div>
+                        <div class="section-content">
+                            <div class="share-section">
+                                <div class="setting-row">
+                                    <label class="ui-label" for="share-downsample">Downsample</label>
+                                    <input id="share-downsample" type="number" min="1" step="1" value="10" title="Keep every Nth point" oninput="this.value = Math.max(1, Math.round(Number(this.value) || 1))">
+                                </div>
+                                <div class="setting-row" style="flex-direction: column; align-items: stretch;">
+                                    <label class="ui-label" style="margin-bottom: 4px;">Export Columns</label>
+                                    <div class="checkbox-list" id="share-column-list" style="max-height: 100px; overflow-y: auto;"></div>
+                                </div>
+                                <div class="setting-row">
+                                    <label class="ui-label" for="share-compress">Compression</label>
+                                    <select id="share-compress">
+                                        <option value="lz">LZ (URL-safe)</option>
+                                        <option value="pako">gzip+base64</option>
+                                    </select>
+                                </div>
+                                <div class="setting-row">
+                                    <label class="ui-label" for="share-simplify-eps">Simplify (m)</label>
+                                    <input id="share-simplify-eps" type="number" step="0.1" value="0" title="RDP epsilon (0 disables)">
+                                </div>
+                                <div class="toggle-row">
+                                    <span class="ui-label">Reduce Precision:</span>
+                                    <input id="share-reduce-precision" type="checkbox" checked>
+                                </div>
+                                <div class="btn-row" style="margin-top: 8px;">
+                                    <button type="button" onclick="generateShareURLFromUI()">Generate URL</button>
+                                    <button type="button" onclick="copyShareURL()" id="btn-copy-share-url">Copy URL</button>
+                                    <button type="button" onclick="openQRModal()" id="btn-open-qr">Show QR</button>
+                                </div>
+                                <div id="share-status" style="margin-top: 6px; font-size: 11px; color: var(--text-muted)"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -220,14 +223,15 @@
 
     <div id="chart-container" class="panel floating-panel">
         <div class="panel-header">
-            <span class="panel-title">Data Chart</span>
-            <button type="button" id="minimize-chart" onclick="toggleChart()">−</button>
+            <div class="chart-header-left">
+                <button type="button" id="sidebar-toggle" onclick="toggleChartSidebar()" title="Toggle Chart Settings">⚙</button>
+                <button type="button" id="minimize-chart" onclick="toggleChart()" title="Minimize Chart">−</button>
+                <span class="panel-title">Data Chart</span>
+            </div>
         </div>
 
         <div id="chart-content">
             <div id="chart-sidebar" class="collapsed">
-                <button type="button" id="sidebar-toggle" onclick="toggleChartSidebar()" title="Toggle Settings">⚙</button>
-
                 <div id="sidebar-inner">
                     <div class="control-section">
                         <div class="section-content">
@@ -270,17 +274,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.4.2/chroma.min.js"></script>
 
-<script src="js/config.js"></script>
-<script src="js/config.local.js" onerror="/* Optional local override */"></script>
-<script src="js/init.js"></script>
-<script src="js/map.js"></script>
-<script src="js/chart.js"></script>
-<script src="js/table.js"></script>
-<script src="js/layers.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/gradients.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/share.js"></script>
+<script src="js/config.js?v=6"></script>
+<script src="js/config.local.js?v=6" onerror="/* Optional local override */"></script>
+<script src="js/init.js?v=6"></script>
+<script src="js/map.js?v=6"></script>
+<script src="js/chart.js?v=6"></script>
+<script src="js/table.js?v=6"></script>
+<script src="js/layers.js?v=6"></script>
+<script src="js/ui.js?v=6"></script>
+<script src="js/gradients.js?v=6"></script>
+<script src="js/utils.js?v=6"></script>
+<script src="js/share.js?v=6"></script>
 
 <script>
     "use strict";

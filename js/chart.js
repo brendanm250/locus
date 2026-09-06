@@ -67,17 +67,17 @@ function formatXAxisValue(val) {
 function buildChartLayout(xAxisMode, traceCount) {
     // --- LAYOUT VARIABLES ---
     const leftMargin = 40;
-    let rightMarginMain = 30;
+    let rightMarginMain = 35;
     const rightMarginContext = rightMarginMain;
     if (traceCount === 2) {
-        rightMarginMain = 40;
+        rightMarginMain = 45;
     } else if (traceCount > 2) {
-        rightMarginMain = (traceCount - 1) * 35;
+        rightMarginMain = (traceCount - 1) * 45;
     }
-    const topMargin = 5;        // % from top of container
-    const mainHeight = 75;      // % height of the main chart
-    const gap = 5;             // % empty space for X-axis labels (Increase this if overlap persists)
-    const contextHeight = 10;   // % height of the bottom mini-chart
+    const topMargin = 5;        // % from top of chart canvas (header is external)
+    const mainHeight = 72;      // % height of the main chart
+    const gap = 6;             // % empty space for X-axis labels
+    const contextHeight = 12;   // % height of the bottom mini-chart
 
     // Calculated Positions (Do not edit manually)
     const mainGridTopStr = `${topMargin}%`;

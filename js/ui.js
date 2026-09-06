@@ -198,6 +198,8 @@ function toggleChart() {
 function toggleChartSidebar() {
     const sidebar = document.getElementById('chart-sidebar');
     sidebar.classList.toggle('collapsed');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    if (toggleBtn) toggleBtn.classList.toggle('active', !sidebar.classList.contains('collapsed'));
 
     // As the sidebar collapses, the chart div expands.
     // We resize multiple times during the transition for smoothness.

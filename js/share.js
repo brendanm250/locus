@@ -84,8 +84,8 @@ function loadSharedData(compressedString) {
 function generateShareURLFromUI() {
     // Read options from DOM
     const keepEvery = Math.max(1, parseInt(document.getElementById('share-downsample').value || '10'));
-    const select = document.getElementById('share-columns');
-    const selected = Array.from(select && select.selectedOptions ? select.selectedOptions : []).map(o => o.value);
+    const checkedBoxes = document.querySelectorAll('#share-column-list .share-col-cb:checked');
+    const selected = Array.from(checkedBoxes).map(cb => cb.value);
     const compressMethod = (document.getElementById('share-compress') && document.getElementById('share-compress').value) || 'lz';
     const simplifyEps = Math.max(0, parseFloat(document.getElementById('share-simplify-eps').value || '0'));
     const reducePrecision = !!document.getElementById('share-reduce-precision') && document.getElementById('share-reduce-precision').checked;

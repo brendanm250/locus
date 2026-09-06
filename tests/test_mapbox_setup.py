@@ -44,10 +44,15 @@ class TestMapboxSetup(unittest.TestCase):
         with open(index_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        pos_config = content.find('src="js/config.js"')
-        pos_config_local = content.find('src="js/config.local.js"')
-        pos_init = content.find('src="js/init.js"')
-        pos_map = content.find('src="js/map.js"')
+        import re
+        def find_script(name):
+            m = re.search(r'src="js/' + re.escape(name) + r'(?:\?[^"]*)?"', content)
+            return m.start() if m else -1
+
+        pos_config = find_script("config.js")
+        pos_config_local = find_script("config.local.js")
+        pos_init = find_script("init.js")
+        pos_map = find_script("map.js")
 
         self.assertNotEqual(pos_config, -1, "js/config.js must be loaded")
         self.assertNotEqual(pos_config_local, -1, "js/config.local.js must be loaded")

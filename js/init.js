@@ -76,19 +76,16 @@ function populateSampleDataDropdown() {
 }
 
 function populateShareColumnOptions(headers) {
-    const select = document.getElementById('share-columns');
-    if (!select) return;
-    select.innerHTML = '';
+    const container = document.getElementById('share-column-list');
+    if (!container) return;
+    container.innerHTML = '';
     const mapped = Object.values(appState.mapping || {});
     headers.forEach(h => {
-        const opt = document.createElement('option');
-        opt.value = h;
-        opt.textContent = h;
-        // Pre-select active mapped telemetry columns or common defaults
-        if (mapped.includes(h) || ['Time', 'time', 'Latitude', 'latitude', 'Longitude', 'longitude', 'Altitude', 'alt'].includes(h)) {
-            opt.selected = true;
-        }
-        select.appendChild(opt);
+        const div = document.createElement('div');
+        div.className = 'checkbox-item';
+        const isChecked = mapped.includes(h) || ['Time', 'time', 'Latitude', 'latitude', 'Longitude', 'longitude', 'Altitude', 'alt'].includes(h);
+        div.innerHTML = `<label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; width: 100%;"><input type="checkbox" class="share-col-cb" value="${h}" ${isChecked ? 'checked' : ''}> <span>${h}</span></label>`;
+        container.appendChild(div);
     });
 }
 
@@ -230,9 +227,11 @@ function promptColumnMapping() {
         const div = document.createElement('div');
         div.style.marginBottom = "10px";
 
-        const label = document.createElement('div');
+        const label = document.createElement('label');
+        label.className = 'ui-label';
+        label.htmlFor = `map-${field.key}`;
         label.innerText = field.label;
-        label.style.color = "#aaa";
+        label.style.marginBottom = "4px";
 
         const select = document.createElement('select');
         select.id = `map-${field.key}`;
@@ -249,6 +248,10 @@ function promptColumnMapping() {
     });
 
     document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function closeMapper() {
+    document.getElementById('modal-overlay').style.display = 'none';
 }
 
 function visualizeData(skipDom = false) {
