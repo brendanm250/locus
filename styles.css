@@ -381,42 +381,76 @@
     }
 
     /* Compact styling for the share UI to reduce spacing */
-    .share-section .setting-row {
-        gap: 6px;
-        align-items: flex-start;
+    .share-section {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
     }
-    .share-section .ui-label { font-size: 0.78rem; color: var(--text-muted); }
+    .share-section .setting-row,
+    .share-section .toggle-row {
+        margin-bottom: 0 !important;
+        gap: 6px;
+    }
+    .share-section .setting-row label {
+        flex: 0 0 105px !important;
+        font-size: 0.78rem;
+    }
+    .share-section .setting-row[style*="column"] label,
+    .share-section .setting-row.stack label {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        margin-bottom: 3px !important;
+    }
+    .share-section input[type="number"],
+    .share-section input[type="text"],
+    .share-section select {
+        height: 24px;
+        padding: 2px 6px;
+        font-size: 0.78rem;
+        margin-bottom: 0;
+    }
+    .share-section .ui-label {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+    }
     #share-status.status-good { color: #2e7d32; }
     #share-status.status-warning { color: #f57f17; }
     #share-status.status-bad { color: #c62828; }
-    .checkbox-item .ui-label {
-        margin-left: 8px;      /* Only adds spacing when next to a checkbox */
-    }
 
-    /* Share & Export Compact Styling */
-    .share-section .setting-row,
-    .share-section .toggle-row {
-        margin-bottom: 8px;
-    }
-    .share-section select,
-    .share-section input[type="number"],
-    .share-section input[type="text"] {
-        margin-bottom: 0;
-    }
-    .share-section .btn-row {
-        margin-top: 8px;
-        gap: 6px;
-    }
-    .share-section .btn-row button {
-        padding: 5px 6px;
-        font-size: 0.8rem;
-    }
     #share-column-list {
         background: var(--bg-body);
         border: 1px solid var(--border-strong);
         border-radius: 4px;
-        max-height: 95px;
+        max-height: 85px !important;
+        overflow-y: auto;
         padding: 4px 6px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2px 6px;
+    }
+    #share-column-list .checkbox-item {
+        margin-bottom: 0;
+        font-size: 0.75rem;
+    }
+    #share-column-list .checkbox-item label {
+        flex: 1 1 auto !important;
+        height: auto !important;
+        font-size: 0.75rem;
+        color: var(--text-bright);
+    }
+    #share-column-list .checkbox-item input {
+        width: 12px;
+        height: 12px;
+        margin: 0 4px 0 0;
+        flex: 0 0 auto;
+    }
+    .share-section .btn-row {
+        margin-top: 4px !important;
+        gap: 5px;
+    }
+    .share-section .btn-row button {
+        padding: 4px 6px;
+        font-size: 0.78rem;
     }
 
     .toggle-row {
@@ -663,12 +697,71 @@
 
     #sidebar-inner {
         width: 320px;
-        padding: 10px var(--gap-std);
+        padding: 8px 12px;
         overflow-y: auto;
         scrollbar-gutter: stable;
         flex: 1;
     }
     #chart-sidebar.collapsed #sidebar-inner { opacity: 0; pointer-events: none; }
+
+    #chart-sidebar .control-section {
+        margin-bottom: 0;
+    }
+    #chart-sidebar .section-content {
+        padding: 0;
+    }
+    #sidebar-inner .setting-row {
+        margin-bottom: 6px;
+    }
+    #sidebar-inner .setting-row label {
+        font-size: 0.78rem;
+        flex: 0 0 95px !important;
+    }
+    #sidebar-inner select {
+        height: 24px;
+        padding: 2px 6px;
+        font-size: 0.78rem;
+    }
+    #sidebar-inner > .control-section > .section-content > .ui-label {
+        font-size: 0.78rem;
+        margin-bottom: 3px;
+        display: block;
+    }
+
+    #trace-list {
+        background: var(--bg-body);
+        border: 1px solid var(--border-strong);
+        border-radius: 4px;
+        max-height: 68px !important;
+        overflow-y: auto;
+        padding: 3px 6px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2px 6px;
+        margin-bottom: 6px;
+    }
+    #trace-list .checkbox-item {
+        margin-bottom: 0;
+        font-size: 0.75rem;
+    }
+    #trace-list .checkbox-item label {
+        flex: 1 1 auto !important;
+        height: auto !important;
+        font-size: 0.75rem;
+        color: var(--text-bright);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        margin: 0;
+        width: 100%;
+    }
+    #trace-list .checkbox-item input {
+        width: 12px;
+        height: 12px;
+        margin: 0 4px 0 0;
+        flex: 0 0 auto;
+    }
 
     #sidebar-toggle.active {
         background: var(--accent-blue);

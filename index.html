@@ -7,7 +7,7 @@
     <title>Locus</title>
 
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet">
-    <link href="styles.css?v=6" rel="stylesheet" >
+    <link href="styles.css?v=8" rel="stylesheet" >
     <link rel="icon" type="image/png" href="logo.png">
 
     <script>
@@ -173,7 +173,7 @@
                                 </div>
                                 <div class="setting-row" style="flex-direction: column; align-items: stretch;">
                                     <label class="ui-label" style="margin-bottom: 4px;">Export Columns</label>
-                                    <div class="checkbox-list" id="share-column-list" style="max-height: 100px; overflow-y: auto;"></div>
+                                    <div class="checkbox-list" id="share-column-list"></div>
                                 </div>
                                 <div class="setting-row">
                                     <label class="ui-label" for="share-compress">Compression</label>
@@ -190,7 +190,7 @@
                                     <span class="ui-label">Reduce Precision:</span>
                                     <input id="share-reduce-precision" type="checkbox" checked>
                                 </div>
-                                <div class="btn-row" style="margin-top: 8px;">
+                                <div class="btn-row">
                                     <button type="button" onclick="generateShareURLFromUI()">Generate URL</button>
                                     <button type="button" onclick="copyShareURL()" id="btn-copy-share-url">Copy URL</button>
                                     <button type="button" onclick="openQRModal()" id="btn-open-qr">Show QR</button>
@@ -274,17 +274,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.4.2/chroma.min.js"></script>
 
-<script src="js/config.js?v=6"></script>
-<script src="js/config.local.js?v=6" onerror="/* Optional local override */"></script>
-<script src="js/init.js?v=6"></script>
-<script src="js/map.js?v=6"></script>
-<script src="js/chart.js?v=6"></script>
-<script src="js/table.js?v=6"></script>
-<script src="js/layers.js?v=6"></script>
-<script src="js/ui.js?v=6"></script>
-<script src="js/gradients.js?v=6"></script>
-<script src="js/utils.js?v=6"></script>
-<script src="js/share.js?v=6"></script>
+<script src="js/config.js?v=8"></script>
+<script src="js/config.local.js?v=8" onerror="/* Optional local override */"></script>
+<script src="js/init.js?v=8"></script>
+<script src="js/map.js?v=8"></script>
+<script src="js/chart.js?v=8"></script>
+<script src="js/table.js?v=8"></script>
+<script src="js/layers.js?v=8"></script>
+<script src="js/ui.js?v=8"></script>
+<script src="js/gradients.js?v=8"></script>
+<script src="js/utils.js?v=8"></script>
+<script src="js/share.js?v=8"></script>
 
 <script>
     "use strict";

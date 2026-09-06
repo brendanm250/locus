@@ -21,7 +21,7 @@ function initChartLists() {
     numericCols.forEach(col => {
         const div = document.createElement('div');
         div.className = 'checkbox-item';
-        div.innerHTML = `<input type="checkbox" onchange="toggleChartTraces('${col}')" ${appState.activeChartTraces.includes(col)?'checked':''}> ${col}`;
+        div.innerHTML = `<label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; width: 100%;"><input type="checkbox" onchange="toggleChartTraces('${col}')" ${appState.activeChartTraces.includes(col)?'checked':''}> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${col}">${col}</span></label>`;
         list.appendChild(div);
     });
 
