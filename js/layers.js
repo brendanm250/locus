@@ -52,39 +52,66 @@ const LayerFactories = {
         }
     }),
 
-    cursorDropline: (pt, scale, offset) => new deck.LineLayer({
+    cursorDropline: (points, scale, offset) => new deck.LineLayer({
         id: 'cursor-dropline',
-        data: [pt],
+        data: points,
         getSourcePosition: d => [d._lon, d._lat, d._renderAlt * scale + offset],
-        getTargetPosition: d => [d._lon, d._lat, d._groundAlt * scale + offset],
-        getColor: [0, 255, 255, 150],
+        getTargetPosition: d => [d._lon, d._lat, (d._groundAlt != null ? d._groundAlt : d._renderAlt) * scale + offset],
+        getColor: d => [...(d._cursorColor || [0, 255, 255]).slice(0, 3), 160],
         getWidth: 1.5,
         parameters: { depthTest: false },
-
-        updateTriggers: { getSourcePosition: [scale, offset] }
-    }),
-
-    cursorBead3D: (pt, scale, offset) => new deck.SimpleMeshLayer({
-        id: 'cursor-bead-3d',
-        data: [pt],
-        mesh: BEAD_CONFIG.beadGeometry,
-        getPosition: d => [d._lon, d._lat, d._renderAlt * scale + offset],
-        getColor: [0, 255, 255],
-        getScale: (d) => {
-            const meshScale = BEAD_CONFIG.calculateBeadScale();
-            return [meshScale, meshScale, meshScale];
-        },
-        parameters: { depthTest: true },
         updateTriggers: {
-            getPosition: [scale, offset]
+            getSourcePosition: [scale, offset],
+            getTargetPosition: [scale, offset],
+            getColor: [points]
         }
     }),
 
-    cursorTarget: (pt, scale, offset) => new deck.ScatterplotLayer({
+    cursorBead3D: (points, scale, offset) => new deck.SimpleMeshLayer({
+        id: 'cursor-bead-3d',
+        data: points,
+        mesh: BEAD_CONFIG.beadGeometry,
+        getPosition: d => [d._lon, d._lat, d._renderAlt * scale + offset],
+        getColor: d => (d._cursorColor || [0, 255, 255]).slice(0, 3),
+        getScale: d => {
+            const meshScale = BEAD_CONFIG.calculateBeadScale();
+            const factor = d._isActive ? 1.35 : 1.0;
+            return [meshScale * factor, meshScale * factor, meshScale * factor];
+        },
+        parameters: { depthTest: true },
+        updateTriggers: {
+            getPosition: [scale, offset],
+            getColor: [points],
+            getScale: [scale]
+        }
+    }),
+    cursorBead3D: (points, scale, offset) => {
+        const meshScale = BEAD_CONFIG.calculateBeadScale();
+        return new deck.SimpleMeshLayer({
+            id: 'cursor-bead-3d',
+            data: points,
+            mesh: BEAD_CONFIG.beadGeometry,
+            sizeScale: meshScale,
+            getPosition: d => [d._lon, d._lat, d._renderAlt * scale + offset],
+            getColor: d => (d._cursorColor || [0, 255, 255]).slice(0, 3),
+            getScale: d => {
+                const factor = d._isActive ? 1.35 : 1.0;
+                return [factor, factor, factor];
+            },
+            parameters: { depthTest: true },
+            updateTriggers: {
+                getPosition: [scale, offset],
+                getColor: [points],
+                getScale: [points.map(p => p._isActive).join(',')]
+            }
+        });
+    },
+
+    cursorTarget: (points, scale, offset) => new deck.ScatterplotLayer({
         id: 'cursor-target',
-        data: [pt],
-        getPosition: d => [d._lon, d._lat, d._groundAlt * scale + offset],
-        getFillColor: [0, 255, 255, 200],
+        data: points,
+        getPosition: d => [d._lon, d._lat, (d._groundAlt != null ? d._groundAlt : d._renderAlt) * scale + offset],
+        getFillColor: d => [...(d._cursorColor || [0, 255, 255]).slice(0, 3), 200],
         getRadius: BEAD_CONFIG.minSizeMeters,
         radiusMinPixels: BEAD_CONFIG.targetPixels,
         stroked: true,
@@ -93,14 +120,14 @@ const LayerFactories = {
         pickable: false,
         parameters: { depthTest: true },
         updateTriggers: {
-            getPosition: [scale, offset]
+            getPosition: [scale, offset],
+            getFillColor: [points]
         },
         polygonOffset: {
             enabled: true,
             factor: -1, // Push forward
             units: -4
         }
-
     }),
 
 };
@@ -113,65 +140,109 @@ const LayerManifest = [
         id: 'groundTrack',
         updateTrigger: () => [
             appState.effectiveScale,
-            appState.showGroundTrack ? appState.terrainVersion : 'groundTrackDisabled'
+            appState.showGroundTrack ? appState.terrainVersion : 'groundTrackDisabled',
+            (appState.traces || []).map(t => `${t.id}:${t.visible}`).join(',')
         ],
-        getData: (data) => generateRenderSegments(data, [
-            {
-                id: 'ground-track',
-                condition: (pt, index) => {
-                    if (!appState.showGroundTrack || !Number.isFinite(pt._renderAlt) || !Number.isFinite(pt._groundAlt)) return false;
-                    if (appState.effectiveScale < 0.1) return false;
-                    return (pt._renderAlt - pt._groundAlt > 10);
-                },
-                getColor: (pt, index) => [180, 180, 180, 240]
-            }
-        ]),
-        createLayers: (segments, scale, offset) => [LayerFactories.groundTrack(segments, scale, offset)]
+        getData: () => {
+            if (!appState.showGroundTrack) return [];
+            const visibleTraces = getVisibleTraces();
+            const allSegments = [];
+
+            visibleTraces.forEach(trace => {
+                if (!trace.mapPathData || trace.mapPathData.length <= 1) return;
+                const segs = generateRenderSegments(trace.mapPathData, [
+                    {
+                        id: 'ground-track',
+                        condition: (pt) => {
+                            if (!Number.isFinite(pt._renderAlt) || !Number.isFinite(pt._groundAlt)) return false;
+                            if (appState.effectiveScale < 0.1) return false;
+                            return (pt._renderAlt - pt._groundAlt > 10);
+                        },
+                        getColor: () => [180, 180, 180, 240]
+                    }
+                ]);
+                allSegments.push(...segs);
+            });
+            return allSegments;
+        },
+        createLayers: (segments, scale, offset) => segments.length > 0 ? [LayerFactories.groundTrack(segments, scale, offset)] : []
     },
     {
         id: 'mainTrace',
         updateTrigger: () => [
             appState.chartViewRange,
-            appState.pathColors,
-            appState.showCorrections ? appState.terrainVersion : 'altCorrectionsDisabled'
+            appState.colorMode,
+            appState.colorBy,
+            appState.currentGradient,
+            appState.showCorrections ? appState.terrainVersion : 'altCorrectionsDisabled',
+            (appState.traces || []).map(t => `${t.id}:${t.visible}:${t.hexColor}`).join(',')
         ],
-        getData: (data) => generateRenderSegments(data, [
-            {
-                id: 'base-path',
-                condition: (pt, index) => true,
-                getColor: (pt, index) => modifyRGBa(appState.pathColors[index], 0, -0.55, 0, -0.75),
-            },
-            {
-                id: 'chart-highlight',
-                condition: (pt, index) => appState.chartViewRange && index >= appState.chartViewRange[0] && index <= appState.chartViewRange[1],
-                getColor: (pt, index) => [appState.pathColors[index][0], appState.pathColors[index][1], appState.pathColors[index][2]]
-            },
-            {
-                id: 'altitude-correction-highlight',
-                condition: (pt, index) => pt._isLifted && appState.showCorrections,
-                getColor: (pt, index) => [255, 130, 0, 255]
-            },
+        getData: () => {
+            const visibleTraces = getVisibleTraces();
+            const allSegments = [];
 
-        ]),
-        createLayers: (segments, scale, offset) => [LayerFactories.flightPath(segments, scale, offset)]
+            visibleTraces.forEach(trace => {
+                if (!trace.mapPathData || trace.mapPathData.length <= 1) return;
+                const pathColors = trace.pathColors || Array(trace.mapPathData.length).fill(trace.color);
+
+                const segs = generateRenderSegments(trace.mapPathData, [
+                    {
+                        id: 'base-path',
+                        condition: () => true,
+                        getColor: (pt, index) => {
+                            const c = pathColors[index] || trace.color;
+                            return [c[0], c[1], c[2], 255];
+                        }
+                    },
+                    {
+                        id: 'chart-highlight',
+                        condition: (pt, index) => {
+                            return trace.id === appState.activeTraceId && appState.chartViewRange && index >= appState.chartViewRange[0] && index <= appState.chartViewRange[1];
+                        },
+                        getColor: (pt, index) => {
+                            const c = pathColors[index] || trace.color;
+                            return [c[0], c[1], c[2], 255];
+                        }
+                    },
+                    {
+                        id: 'altitude-correction-highlight',
+                        condition: (pt) => pt._isLifted && appState.showCorrections,
+                        getColor: () => [255, 130, 0, 255]
+                    }
+                ]);
+                allSegments.push(...segs);
+            });
+            return allSegments;
+        },
+        createLayers: (segments, scale, offset) => segments.length > 0 ? [LayerFactories.flightPath(segments, scale, offset)] : []
     },
     {
         id: 'tooltips',
-        updateTrigger: () => appState.hoverIndex,
-        // Direct index lookup. No searching required.
-        getData: (data) => {
-            if (appState.hoverIndex >= 0 && appState.hoverIndex < data.length) {
-                return [data[appState.hoverIndex]];
-            }
-            return [];
+        updateTrigger: () => [
+            appState.playbackTime,
+            appState.hoverIndex,
+            appState.activeTraceId,
+            (appState.traces || []).map(t => `${t.id}:${t.visible}:${t.cursorIndex}`).join(',')
+        ],
+        getData: () => {
+            const visibleTraces = getVisibleTraces();
+            return visibleTraces.map(trace => {
+                if (!trace.processedData || trace.processedData.length === 0) return null;
+                const pt = trace.cursorPoint || trace.processedData[trace.cursorIndex || 0];
+                if (!pt) return null;
+                return {
+                    ...pt,
+                    _cursorColor: trace.color,
+                    _isActive: trace.id === appState.activeTraceId
+                };
+            }).filter(Boolean);
         },
         createLayers: (points, scale, offset) => {
             if (!points || points.length === 0) return [];
-            const pt = points[0];
             return [
-                LayerFactories.cursorTarget(pt, scale, offset),
-                LayerFactories.cursorBead3D(pt, scale, offset),
-                LayerFactories.cursorDropline(pt, scale, offset)
+                LayerFactories.cursorTarget(points, scale, offset),
+                LayerFactories.cursorBead3D(points, scale, offset),
+                LayerFactories.cursorDropline(points, scale, offset)
             ];
         }
     }
@@ -240,8 +311,12 @@ function generateRenderSegments(data, rules) {
 
 
 function renderMapLayers(forceRebuild = false) {
-    if (!appState.mapPathData || !appState.mapPathData.length) return;
     if (!deckOverlay) return;
+    const visibleTraces = getVisibleTraces();
+    if (!visibleTraces.length) {
+        deckOverlay.setProps({ layers: [] });
+        return;
+    }
 
     const effectiveScale = appState.effectiveScale;
     const zoomOffset = getBillboardOffset();
@@ -259,7 +334,7 @@ function renderMapLayers(forceRebuild = false) {
         const currentTriggerState = JSON.stringify(manifestEntry.updateTrigger());
         if (cache.triggerState !== currentTriggerState || forceRebuild) {
             cache.triggerState = currentTriggerState;
-            cache.data = manifestEntry.getData(appState.mapPathData);
+            cache.data = manifestEntry.getData();
         }
 
         if (cache.data && cache.data.length > 0) {

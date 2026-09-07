@@ -1068,3 +1068,159 @@
     #offline-indicator .connection-status-dot {
         margin: 0;
     }
+
+    /* ==========================================================================
+       Multi-Trace Manager & Trace Card Styling
+       ========================================================================== */
+    .trace-cards-container {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 240px;
+        overflow-y: auto;
+        padding-right: 2px;
+        margin-top: 6px;
+    }
+
+    .trace-card {
+        background: var(--bg-element);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-std);
+        padding: 7px 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: border-color var(--animation-duration), background var(--animation-duration);
+    }
+
+    .trace-card:hover {
+        border-color: var(--panel-border);
+    }
+
+    .trace-card.active-trace {
+        border-color: var(--accent-blue);
+        background: rgba(0, 136, 255, 0.08);
+        box-shadow: 0 0 8px rgba(0, 136, 255, 0.15);
+    }
+
+    .trace-card-visibility {
+        cursor: pointer;
+        margin: 0;
+        flex-shrink: 0;
+        width: 14px;
+        height: 14px;
+        accent-color: var(--accent-blue);
+    }
+
+    .trace-color-picker-wrapper {
+        position: relative;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        cursor: pointer;
+        flex-shrink: 0;
+        box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+        border: 1.5px solid rgba(255, 255, 255, 0.4);
+        overflow: hidden;
+        transition: transform 0.15s ease;
+    }
+
+    .trace-color-picker-wrapper:hover {
+        transform: scale(1.15);
+    }
+
+    .trace-color-input {
+        position: absolute;
+        top: -10px;
+        left: -10px;
+        width: 40px;
+        height: 40px;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .trace-info {
+        flex: 1;
+        min-width: 0;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .trace-name {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-bright);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .trace-active-badge {
+        font-size: 0.62rem;
+        background: var(--accent-blue);
+        color: #fff;
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        flex-shrink: 0;
+    }
+
+    .trace-meta {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        margin-top: 1px;
+    }
+
+    .trace-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .trace-action-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        cursor: pointer;
+        padding: 3px 6px;
+        border-radius: 3px;
+        line-height: 1;
+        transition: all var(--animation-duration);
+    }
+
+    .trace-action-btn:hover {
+        color: var(--text-bright);
+        background: var(--bg-btn);
+    }
+
+    .trace-action-btn.btn-remove {
+        font-size: 0.85rem;
+        font-weight: bold;
+    }
+
+    .trace-action-btn.btn-remove:hover {
+        color: #ff5555;
+        background: rgba(255, 68, 68, 0.2);
+    }
+
+    .btn-icon-text {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 0.72rem;
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+    .btn-icon-text:hover {
+        color: #ff5555;
+        background: rgba(255, 68, 68, 0.1);
+    }

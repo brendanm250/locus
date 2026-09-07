@@ -17,6 +17,39 @@ window.addEventListener('online', () => {
     liveIndicator.setAttribute('hidden', '');
 });
 
+const TRACE_PALETTE = [
+    '#00e5ff', // Cyan
+    '#ff5722', // Coral / Red-Orange
+    '#b388ff', // Violet / Purple
+    '#00e676', // Bright Neon Green
+    '#ffd600', // Bright Amber / Gold
+    '#ff4081', // Pink / Rose
+    '#40c4ff', // Sky Blue
+    '#76ff03', // Lime Green
+    '#ff9100', // Deep Orange
+    '#e040fb'  // Magenta
+];
+
+function hexToRgb(hex) {
+    const cleanHex = hex.replace('#', '');
+    const num = parseInt(cleanHex, 16);
+    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+function rgbToHex(r, g, b) {
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function getActiveTrace() {
+    if (!appState || !appState.traces || appState.traces.length === 0) return null;
+    return appState.traces.find(t => t.id === appState.activeTraceId) || appState.traces[0];
+}
+
+function getVisibleTraces() {
+    if (!appState || !appState.traces) return [];
+    return appState.traces.filter(t => t.visible);
+}
+
 const FALLBACK_SAMPLES = [
     { name: 'Driving', path: 'sample_data/Driving.csv' },
     { name: 'Flying', path: 'sample_data/Flying.csv' },
@@ -35,11 +68,10 @@ function populateSampleFallback() {
     });
 }
 
-// Run this right away inside your launchApp() function so the list is ready
 function populateSampleDataDropdown() {
-    const owner = 'brendanm250'; // e.g., 'vcervewrv'
-    const repo = 'locus';       // e.g., 'flight-path-map'
-    const folderPath = 'sample_data';           // The folder where your CSVs live
+    const owner = 'brendanm250';
+    const repo = 'locus';
+    const folderPath = 'sample_data';
 
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${folderPath}`;
 
@@ -50,9 +82,8 @@ function populateSampleDataDropdown() {
         })
         .then(files => {
             const select = document.getElementById('sample-data-select');
-            select.innerHTML = ''; // Clear the "Loading..." text
+            select.innerHTML = '';
 
-            // Filter out anything that isn't a CSV
             const csvFiles = files.filter(file => file.name.endsWith('.csv'));
 
             if (csvFiles.length === 0) {
@@ -60,12 +91,10 @@ function populateSampleDataDropdown() {
                 return;
             }
 
-            // Populate the dropdown
             csvFiles.forEach(file => {
                 const option = document.createElement('option');
-                // The API provides a 'download_url' which gives us the raw CSV text
                 option.value = file.download_url;
-                option.textContent = file.name.replace('.csv', ''); // Make it look cleaner
+                option.textContent = file.name.replace('.csv', '');
                 select.appendChild(option);
             });
         })
@@ -77,9 +106,10 @@ function populateSampleDataDropdown() {
 
 function populateShareColumnOptions(headers) {
     const container = document.getElementById('share-column-list');
-    if (!container) return;
+    if (!container || !headers) return;
     container.innerHTML = '';
-    const mapped = Object.values(appState.mapping || {});
+    const active = getActiveTrace();
+    const mapped = Object.values(active?.mapping || {});
     headers.forEach(h => {
         const div = document.createElement('div');
         div.className = 'checkbox-item';
@@ -89,9 +119,194 @@ function populateShareColumnOptions(headers) {
     });
 }
 
-// Attach this to your new Load button
+function autoDetectMappingForHeaders(headers) {
+    const mapping = {};
+    REQUIRED_FIELDS.forEach(field => {
+        let bestScore = -1;
+        let selectedIdx = 0;
+
+        headers.forEach((h, i) => {
+            const header = h.toLowerCase();
+            const key = field.key.toLowerCase();
+            let score = 0;
+
+            if (header.includes(key)) {
+                score = 1;
+                if (field.key === 'alt') {
+                    if (header.includes('gps')) score += 1;
+                    if (header.includes('msl') || header.includes('hae')) score += 1;
+                    if (header.includes('baro')) score += 0.5;
+                }
+                if (field.key === 'time') {
+                    if (header.includes('time')) score += 1;
+                }
+            }
+
+            if (score > bestScore) {
+                bestScore = score;
+                selectedIdx = i;
+            }
+        });
+
+        mapping[field.key] = headers[selectedIdx];
+    });
+    return mapping;
+}
+
+function autoDetectColumns(trace) {
+    const target = trace || getActiveTrace();
+    if (!target) return;
+    target.mapping = autoDetectMappingForHeaders(target.headers);
+}
+
+function processTraceData(trace) {
+    let cumDist = 0;
+    let distAccumulator = 0;
+    let startTime = null;
+    let lastLat = null;
+    let lastLon = null;
+
+    trace.processedData = trace.rawData.map((row, i) => {
+        const rawLat = row[trace.mapping.lat];
+        const rawLon = row[trace.mapping.lon];
+        let rawAlt = row[trace.mapping.alt] != null ? row[trace.mapping.alt] : 'noAltData';
+        let rawTime = row[trace.mapping.time] != null ? row[trace.mapping.time] : 'noTimeData';
+
+        if (rawAlt !== 'noAltData' && typeof rawAlt === 'number') {
+            const altUnit = trace.units && trace.units[trace.mapping.alt];
+            if (altUnit) rawAlt = convertAltitude(rawAlt, altUnit);
+        }
+        if (rawTime !== 'noTimeData' && typeof rawTime === 'number') {
+            const timeUnit = trace.units && trace.units[trace.mapping.time];
+            if (timeUnit) rawTime = convertTime(rawTime, timeUnit);
+        }
+
+        if (rawLat == null || rawLon == null || isNaN(rawLat) || isNaN(rawLon)) return null;
+
+        if (lastLat !== null && lastLon !== null) {
+            const d = haversineDistance(lastLat, lastLon, rawLat, rawLon);
+            distAccumulator += d;
+            if (distAccumulator > 0.5) {
+                cumDist += distAccumulator;
+                distAccumulator = 0;
+            }
+        }
+        lastLat = rawLat;
+        lastLon = rawLon;
+
+        let timeSec = 0;
+        if (typeof rawTime === 'number') {
+            if (startTime === null) startTime = rawTime;
+            const isMs = rawTime > 1e11;
+            timeSec = isMs ? (rawTime - startTime) / 1000 : (rawTime - startTime);
+        } else {
+            timeSec = i;
+        }
+
+        return {
+            ...row,
+            _lat: rawLat,
+            _lon: rawLon,
+            _alt: typeof rawAlt === 'number' ? rawAlt : 0,
+            _renderAlt: typeof rawAlt === 'number' ? rawAlt : 0,
+            _isLifted: false,
+            _distKm: cumDist / 1000,
+            _timeSec: timeSec,
+            _absTime: typeof rawTime === 'number' ? rawTime : null,
+            _rawIndex: i,
+            _groundAlt: null,
+            _traceId: trace.id
+        };
+    }).filter(r => r !== null);
+
+    trace.mapPathData = trace.processedData;
+
+    if (trace.processedData.length > 0) {
+        const lastPt = trace.processedData[trace.processedData.length - 1];
+        const lats = trace.processedData.map(pt => pt._lat);
+        const lons = trace.processedData.map(pt => pt._lon);
+        trace.stats = {
+            totalDuration: lastPt._timeSec,
+            totalDistance: lastPt._distKm,
+            minLat: Math.min(...lats),
+            maxLat: Math.max(...lats),
+            minLon: Math.min(...lons),
+            maxLon: Math.max(...lons)
+        };
+        trace.stats.centerCoords = [
+            (trace.stats.maxLon + trace.stats.minLon) / 2,
+            (trace.stats.maxLat + trace.stats.minLat) / 2
+        ];
+        trace.cursorPoint = trace.processedData[0];
+        trace.cursorIndex = 0;
+    } else {
+        trace.stats = { minLat: 0, maxLat: 0, minLon: 0, maxLon: 0, centerCoords: [0, 0], totalDuration: 0, totalDistance: 0 };
+        trace.cursorPoint = null;
+        trace.cursorIndex = 0;
+    }
+}
+
+function addTraceFromParsedData(name, rawData, headers, units, customMapping = null) {
+    const nextIndex = appState.traces.length;
+    const hexColor = TRACE_PALETTE[nextIndex % TRACE_PALETTE.length];
+    const rgbColor = hexToRgb(hexColor);
+
+    const trace = {
+        id: 'trace_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        name: name || `Trace ${nextIndex + 1}`,
+        color: rgbColor,
+        hexColor: hexColor,
+        visible: true,
+        rawData: rawData,
+        headers: headers,
+        units: units || {},
+        mapping: customMapping || autoDetectMappingForHeaders(headers),
+        processedData: [],
+        mapPathData: [],
+        liftedSegments: [],
+        stats: {},
+        cursorPoint: null,
+        cursorIndex: 0,
+        pathColors: null
+    };
+
+    processTraceData(trace);
+    appState.traces.push(trace);
+
+    if (!appState.activeTraceId || !appState.traces.some(t => t.id === appState.activeTraceId)) {
+        appState.activeTraceId = trace.id;
+    }
+
+    return trace;
+}
+
+function handleFilesSelected(files) {
+    if (!files || files.length === 0) return;
+    let pending = files.length;
+
+    Array.from(files).forEach(file => {
+        Papa.parse(file, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                const { data: cleanedData, units } = detectAndStripUnits(results);
+                const traceName = file.name.replace(/\.[^/.]+$/, "");
+                addTraceFromParsedData(traceName, cleanedData, results.meta.fields, units);
+
+                pending--;
+                if (pending === 0) {
+                    onTracesChanged(true);
+                }
+            }
+        });
+    });
+}
+
 function loadSelectedSample() {
     const downloadUrl = document.getElementById('sample-data-select').value;
+    const select = document.getElementById('sample-data-select');
+    const selectedText = select.options[select.selectedIndex]?.textContent || 'Sample';
 
     if (!downloadUrl) {
         alert("Please select a valid sample file.");
@@ -103,7 +318,7 @@ function loadSelectedSample() {
         return response.text();
     });
 
-    fetchCsv(downloadUrl)
+    return fetchCsv(downloadUrl)
         .catch(err => {
             if (!downloadUrl.startsWith('http')) {
                 const githubFallback = `https://raw.githubusercontent.com/brendanm250/locus/main/${downloadUrl}`;
@@ -112,19 +327,18 @@ function loadSelectedSample() {
             throw err;
         })
         .then(csvText => {
-            Papa.parse(csvText, {
-                header: true,
-                dynamicTyping: true,
-                skipEmptyLines: true,
-                complete: (results) => {
-                    const { data: cleanedData, units } = detectAndStripUnits(results);
-                    appState.rawData = cleanedData;
-                    appState.headers = results.meta.fields;
-                    appState.units = units || {};
-
-                    autoDetectColumns(); // Pre-fill mapping based on header names
-                    visualizeData(true); // Skip DOM update since we already have the mapping
-                }
+            return new Promise((resolve) => {
+                Papa.parse(csvText, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                        const { data: cleanedData, units } = detectAndStripUnits(results);
+                        const trace = addTraceFromParsedData(selectedText, cleanedData, results.meta.fields, units);
+                        onTracesChanged(true);
+                        resolve(trace);
+                    }
+                });
             });
         })
         .catch(error => {
@@ -133,18 +347,87 @@ function loadSelectedSample() {
         });
 }
 
+function onTracesChanged(fitBounds = false) {
+    const visibleTraces = getVisibleTraces();
+    const activeTrace = getActiveTrace();
+
+    // Calculate maximum duration and distance across visible traces
+    let maxDur = 0;
+    let maxDist = 0;
+    visibleTraces.forEach(t => {
+        if (t.stats) {
+            if (t.stats.totalDuration > maxDur) maxDur = t.stats.totalDuration;
+            if (t.stats.totalDistance > maxDist) maxDist = t.stats.totalDistance;
+        }
+    });
+    appState.maxDuration = maxDur;
+    appState.maxDistance = maxDist;
+    appState.totalDuration = maxDur;
+
+    // Time slider range update
+    const slider = document.getElementById('time-slider');
+    if (slider) {
+        slider.max = maxDur > 0 ? maxDur : 100;
+        if (parseFloat(slider.value) > slider.max) {
+            slider.value = 0;
+            appState.playbackTime = 0;
+        }
+    }
+
+    // Trace Manager List UI update
+    renderTraceList();
+
+    const dataDependentControls = document.getElementById('data-dependent-controls');
+    const dataActionBtns = document.getElementById('data-action-btns');
+    if (appState.traces.length > 0) {
+        if (dataDependentControls) dataDependentControls.style.display = 'block';
+        if (dataActionBtns) dataActionBtns.style.display = 'flex';
+    } else {
+        if (dataDependentControls) dataDependentControls.style.display = 'none';
+        if (dataActionBtns) dataActionBtns.style.display = 'none';
+    }
+
+    if (activeTrace) {
+        populateShareColumnOptions(activeTrace.headers);
+        initColorList();
+        if (typeof initChartLists === 'function') initChartLists();
+    }
+
+    calculatePathColors();
+
+    if (fitBounds && visibleTraces.length > 0) {
+        flyToCenter();
+    }
+
+    if (map && map.getSource('mapbox-dem')) {
+        map.once('idle', () => applyTerrainCorrection());
+    }
+
+    JumpEvent.jumpToSeconds(appState.playbackTime || 0, true);
+    renderMapLayers(true);
+
+    if (typeof updateTableTraceSelect === 'function') {
+        updateTableTraceSelect();
+    }
+    if (activeTrace) {
+        renderTable(activeTrace.rawData, activeTrace.headers);
+    }
+
+    if (typeof renderCharts === 'function') {
+        renderCharts();
+    }
+
+    if (typeof updateScreenCoordsCache === 'function') {
+        updateScreenCoordsCache();
+    }
+}
+
 function launchApp() {
-    // Run when the window changes size
     window.addEventListener('resize', adjustHUDLayout);
 
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const sharedDataParam = hashParams.get('share');
 
-
-
-    // Run a ResizeObserver on the control panel.
-    // This is critical because it will fire smoothly as the panel transitions
-    // between expanded and minimized states, keeping the HUD locked to its edge.
     const panelObserver = new ResizeObserver(() => {
         adjustHUDLayout();
     });
@@ -152,17 +435,19 @@ function launchApp() {
     const controlPanel = document.getElementById('control-panel');
     if (controlPanel) panelObserver.observe(controlPanel);
 
-    // Ensure it runs once on startup
     requestAnimationFrame(adjustHUDLayout);
 
     appState = {
-        rawData: [],
-        processedData: [],
-        mapPathData: [],
-        dataStats: {},
-        headers: [],
-        mapping: {},
-        units: {},
+        traces: [],
+        activeTraceId: null,
+        mappingTraceId: null,
+        colorMode: 'trace',
+        playbackTime: 0,
+        playbackRate: 1,
+        maxDuration: 0,
+        maxDistance: 0,
+
+        // Single-trace backward-compatibility & globals
         hoverIndex: -1,
         altScale: 1.75,
         isPlaying: false,
@@ -183,7 +468,71 @@ function launchApp() {
         terrainVersion: 0,
         effectiveScale: null
     };
-    Object.preventExtensions(appState); // Make sure I centrally manage app state properties
+
+    // Backward-compatibility getters so existing functions referring to appState.processedData continue working
+    Object.defineProperty(appState, 'processedData', {
+        get() {
+            const active = getActiveTrace();
+            return active ? active.processedData : [];
+        },
+        set(val) {
+            const active = getActiveTrace();
+            if (active) active.processedData = val;
+        }
+    });
+
+    Object.defineProperty(appState, 'rawData', {
+        get() {
+            const active = getActiveTrace();
+            return active ? active.rawData : [];
+        },
+        set(val) {
+            const active = getActiveTrace();
+            if (active) active.rawData = val;
+        }
+    });
+
+    Object.defineProperty(appState, 'headers', {
+        get() {
+            const active = getActiveTrace();
+            return active ? active.headers : [];
+        },
+        set(val) {
+            const active = getActiveTrace();
+            if (active) active.headers = val;
+        }
+    });
+
+    Object.defineProperty(appState, 'mapping', {
+        get() {
+            const active = getActiveTrace();
+            return active ? active.mapping : {};
+        },
+        set(val) {
+            const active = getActiveTrace();
+            if (active) active.mapping = val;
+        }
+    });
+
+    Object.defineProperty(appState, 'dataStats', {
+        get() {
+            const active = getActiveTrace();
+            return active ? active.stats : {};
+        }
+    });
+
+    Object.defineProperty(appState, 'mapPathData', {
+        get() {
+            const active = getActiveTrace();
+            return active ? active.mapPathData : [];
+        },
+        set(val) {
+            const active = getActiveTrace();
+            if (active) active.mapPathData = val;
+        }
+    });
+
+    Object.preventExtensions(appState);
 
     // --- MAP INITIALIZATION ---
     initializeMap();
@@ -191,37 +540,36 @@ function launchApp() {
     // --- CHART INITIALIZATION ---
     initializeChart();
 
-    // --- STATE ---
-    document.getElementById('csv-input').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        Papa.parse(file, {
-            header: true,
-            dynamicTyping: true,
-            skipEmptyLines: true,
-                complete: (results) => {
-                    const { data: cleanedData, units } = detectAndStripUnits(results);
-                    appState.rawData = cleanedData;
-                    appState.headers = results.meta.fields;
-                    appState.units = units || {};
-                    promptColumnMapping();
-                }
+    // --- FILE INPUT LISTENER ---
+    const csvInput = document.getElementById('csv-input');
+    if (csvInput) {
+        csvInput.addEventListener('change', (e) => {
+            handleFilesSelected(e.target.files);
+            e.target.value = '';
         });
-    });
+    }
 
-    // Load shared data after map is initialized to avoid map being undefined
     if (sharedDataParam) loadSharedData(sharedDataParam);
 
     attachJumpEvents();
     populateSampleDataDropdown();
+    initGradientPicker();
 }
 
-function promptColumnMapping() {
+function promptColumnMapping(traceId) {
+    const targetTrace = traceId ? appState.traces.find(t => t.id === traceId) : getActiveTrace();
+    if (!targetTrace) return;
+
+    appState.mappingTraceId = targetTrace.id;
     const container = document.getElementById('mapper-rows');
     container.innerHTML = '';
 
-    // Run the detection first so appState.mapping is populated
-    autoDetectColumns();
+    const modalTitle = document.querySelector('#mapper-modal h3');
+    if (modalTitle) modalTitle.innerText = `Map Columns: ${targetTrace.name}`;
+
+    if (!targetTrace.mapping || Object.keys(targetTrace.mapping).length === 0) {
+        autoDetectColumns(targetTrace);
+    }
 
     REQUIRED_FIELDS.forEach(field => {
         const div = document.createElement('div');
@@ -235,12 +583,8 @@ function promptColumnMapping() {
 
         const select = document.createElement('select');
         select.id = `map-${field.key}`;
-
-        // Populate dropdown options
-        select.innerHTML = appState.headers.map(h => `<option value="${h}">${h}</option>`).join('');
-
-        // Set the dropdown to whatever our auto-detect logic picked
-        select.value = appState.mapping[field.key];
+        select.innerHTML = targetTrace.headers.map(h => `<option value="${h}">${h}</option>`).join('');
+        select.value = targetTrace.mapping[field.key] || targetTrace.headers[0];
 
         div.appendChild(label);
         div.appendChild(select);
@@ -252,148 +596,85 @@ function promptColumnMapping() {
 
 function closeMapper() {
     document.getElementById('modal-overlay').style.display = 'none';
+    appState.mappingTraceId = null;
 }
 
 function visualizeData(skipDom = false) {
-    if (!skipDom) {
-        // Only scrape the HTML if the user clicked the modal button
-        REQUIRED_FIELDS.forEach(field => {
-            appState.mapping[field.key] = document.getElementById(`map-${field.key}`).value;
-        });
+    const targetTrace = appState.mappingTraceId ?
+        appState.traces.find(t => t.id === appState.mappingTraceId) :
+        getActiveTrace();
+
+    if (targetTrace) {
+        if (!skipDom) {
+            REQUIRED_FIELDS.forEach(field => {
+                const el = document.getElementById(`map-${field.key}`);
+                if (el) targetTrace.mapping[field.key] = el.value;
+            });
+        }
+        processTraceData(targetTrace);
     }
 
     document.getElementById('modal-overlay').style.display = 'none';
+    appState.mappingTraceId = null;
 
-    let cumDist = 0;
-    let distAccumulator = 0;
-    let startTime = null;
-    let lastLat = null;
-    let lastLon = null;
-
-    appState.processedData = appState.rawData.map((row, i) => {
-        const rawLat = row[appState.mapping.lat];
-        const rawLon = row[appState.mapping.lon];
-        let rawAlt = row[appState.mapping.alt] || 'noAltData';
-        let rawTime = row[appState.mapping.time] || 'noTimeData';
-
-        // Apply unit conversions if a units row was detected
-        if (rawAlt !== 'noAltData' && typeof rawAlt === 'number') {
-            const altUnit = appState.units && appState.units[appState.mapping.alt];
-            if (altUnit) rawAlt = convertAltitude(rawAlt, altUnit);
-        }
-        if (rawTime !== 'noTimeData' && typeof rawTime === 'number') {
-            const timeUnit = appState.units && appState.units[appState.mapping.time];
-            if (timeUnit) rawTime = convertTime(rawTime, timeUnit);
-        }
-
-        if (!rawLat || !rawLon) return null;
-
-        if (lastLat !== null && lastLon !== null) {
-            const d = haversineDistance(lastLat, lastLon, rawLat, rawLon);
-            distAccumulator += d;
-            if (distAccumulator > 0.5) {
-                cumDist += distAccumulator;
-                distAccumulator = 0;
-            }
-        }
-        lastLat = rawLat;
-        lastLon = rawLon;
-
-        let timeSec = 0;
-        if (typeof rawTime === 'number') {
-            if (i === 0) startTime = rawTime;
-            const isMs = rawTime > 1e11;
-            timeSec = isMs ? (rawTime - startTime) / 1000 : (rawTime - startTime);
-        }
-
-        return {
-            ...row,
-            _lat: rawLat, _lon: rawLon, _alt: rawAlt,
-            _renderAlt: rawAlt, // Default to raw for initial rendering
-            _isLifted: false,
-            _distKm: cumDist / 1000,
-            _timeSec: timeSec,
-            _rawIndex: i, // Store original index for reference when path is later split into segments
-            _groundAlt: null
-        };
-    }).filter(r => r !== null);
-
-
-    if (appState.processedData.length > 0) {
-        appState.totalDuration = appState.processedData[appState.processedData.length - 1]._timeSec;
-    }
-
-    initChartLists();
-    initColorList();
-    initGradientPicker();
-
-
-    document.getElementById('time-slider').max = appState.processedData.length - 1;
-
-    const lats = Array.from(appState.processedData, (pt) => pt._lat);
-    const lons = Array.from(appState.processedData, (pt) => pt._lon);
-    appState.dataStats.maxLat = Math.max(...lats);
-    appState.dataStats.minLat = Math.min(...lats);
-    appState.dataStats.maxLon = Math.max(...lons);
-    appState.dataStats.minLon = Math.min(...lons);
-    appState.dataStats.centerCoords = [
-        (appState.dataStats.maxLon + appState.dataStats.minLon)/2,
-        (appState.dataStats.maxLat + appState.dataStats.minLat)/2,
-    ];
-
-    if (appState.processedData.length > 0) {
-        flyToCenter({
-        padding: {top: 50, bottom: 50, left: 100, right: 50},
-        bearing: 20,
-        pitch: 45,
-        curve: 3,
-        // duration: 8000
-    });
-    }
-    map.once('idle', () => applyTerrainCorrection());
-
-    // Simplify Data for Map Trace
-    appState.mapPathData = appState.processedData;
-    appState.chartViewRange = [0, appState.processedData.length];
-
-    renderTable(appState.rawData, appState.headers);
-    calculatePathColors();
-    renderMapLayers();
-
-    // Populate share column options so user can pick which columns to include
-    populateShareColumnOptions(appState.headers);
-
-    revealDataControls();
-    initializeChartUI();
-    renderCharts();
-    collapseSetupSections();
+    onTracesChanged(false);
 }
 
-// Sync components when active point changes
+function findNearestIndexInTrace(data, key, target) {
+    if (!data || data.length === 0) return 0;
+    let left = 0, right = data.length - 1;
+    while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        if (data[mid][key] < target) left = mid + 1;
+        else right = mid - 1;
+    }
+    if (left >= data.length) return data.length - 1;
+    if (left <= 0) return 0;
+    const d1 = Math.abs(data[left][key] - target);
+    const d2 = Math.abs(data[left - 1][key] - target);
+    return d1 < d2 ? left : left - 1;
+}
+
+// Sync components when active point or playback time changes
 const JumpEvent = {
     subscribers: [],
     subscribe(fn) {
         this.subscribers.push(fn);
     },
 
-    jumpToTime(index, forceUpdate = false) {
-        // 1. Data Validation (Sanitization)
-        if (!appState.processedData[index]) return;
+    jumpToSeconds(seconds, forceUpdate = false) {
+        if (typeof seconds !== 'number' || isNaN(seconds)) return;
+        if (!forceUpdate && Math.abs((appState.playbackTime || 0) - seconds) < 0.001) return;
 
-        // 2. Prevent Redundant Processing (The Infinite Loop Fix)
-        if (!forceUpdate && appState.hoverIndex === index) return;
+        appState.playbackTime = seconds;
 
-        // 3. State Update
-        appState.hoverIndex = index;
+        // Update active point on each visible trace
+        const visible = getVisibleTraces();
+        visible.forEach(trace => {
+            if (!trace.processedData || trace.processedData.length === 0) return;
+            const idx = findNearestIndexInTrace(trace.processedData, '_timeSec', seconds);
+            trace.cursorIndex = idx;
+            trace.cursorPoint = trace.processedData[idx];
+        });
 
-        // 4. Notify everyone that the time has changed
-        JumpEvent.publish(index);
+        const activeTrace = getActiveTrace();
+        const activeIdx = activeTrace ? activeTrace.cursorIndex : 0;
+        appState.hoverIndex = activeIdx;
+
+        JumpEvent.publish(activeIdx, activeTrace ? activeTrace.cursorPoint : null);
     },
 
-    publish(index) {
+    jumpToTime(index, forceUpdate = false) {
+        const activeTrace = getActiveTrace();
+        if (!activeTrace || !activeTrace.processedData[index]) return;
+        const pt = activeTrace.processedData[index];
+        JumpEvent.jumpToSeconds(pt._timeSec, forceUpdate);
+    },
+
+    publish(index, point) {
         this.subscribers.forEach(fn => {
             try {
-                fn(index);
+                fn(index, point);
             } catch (err) {
                 console.error(`Telemetry Error in ${fn.name || 'subscriber'}:`, err);
             }
@@ -402,73 +683,59 @@ const JumpEvent = {
 };
 
 function attachJumpEvents() {
-     // --- GUI Text Updates ---
-    JumpEvent.subscribe(function updateGUI(idx) {
-        const pt = appState.processedData[idx];
-        document.getElementById('disp-time').innerText = formatTime(pt._timeSec);
-        document.getElementById('disp-dist').innerText = formatDistance(pt._distKm);
-        document.getElementById('disp-alt').innerText = Math.round(pt._alt) + " m";
+    // --- GUI Text Updates ---
+    JumpEvent.subscribe(function updateGUI(idx, pt) {
+        const activeTrace = getActiveTrace();
+        const p = pt || (activeTrace && activeTrace.processedData[idx]);
+        if (!p) return;
+
+        const dispTime = document.getElementById('disp-time');
+        const dispDist = document.getElementById('disp-dist');
+        const dispAlt = document.getElementById('disp-alt');
+        const traceNameBadge = document.getElementById('hud-active-trace-stat');
+        const dispTraceName = document.getElementById('disp-trace-name');
+
+        if (dispTime) dispTime.innerText = formatTime(p._timeSec);
+        if (dispDist) dispDist.innerText = formatDistance(p._distKm);
+        if (dispAlt) dispAlt.innerText = Math.round(p._alt) + " m";
+
+        if (activeTrace && traceNameBadge && dispTraceName) {
+            traceNameBadge.style.display = 'inline-flex';
+            dispTraceName.innerText = activeTrace.name;
+        } else if (traceNameBadge) {
+            traceNameBadge.style.display = 'none';
+        }
     });
 
     // --- ECharts Update ---
     JumpEvent.subscribe(function updateChart(idx) {
-        chart.dispatchAction({
-            type: 'showTip',
-            seriesIndex: 0,
-            dataIndex: idx
-        });
+        if (chart && appState.activeChartTraces && appState.activeChartTraces.length > 0) {
+            chart.dispatchAction({
+                type: 'showTip',
+                seriesIndex: 0,
+                dataIndex: idx
+            });
+        }
     });
 
     // --- Mapbox Update ---
-    JumpEvent.subscribe(function updateMap(idx) {
+    JumpEvent.subscribe(function updateMap() {
         renderMapLayers();
     });
 
     // --- Table Update ---
     JumpEvent.subscribe(function updateTable(idx) {
-        highlightTableRow(idx); // if table is displayed
+        if (typeof highlightTableRow === 'function') {
+            highlightTableRow(idx);
+        }
     });
 
     // Update cache when data loads or camera moves
     JumpEvent.subscribe(function updateScreenCoords(idx) {
-        if (idx === 0) updateScreenCoordsCache(); // Initial load
+        if (idx === 0) updateScreenCoordsCache();
     });
 }
 
-function autoDetectColumns() {
-
-    REQUIRED_FIELDS.forEach(field => {
-        let bestScore = -1;
-        let selectedIdx = 0;
-
-        appState.headers.forEach((h, i) => {
-            const header = h.toLowerCase();
-            const key = field.key.toLowerCase();
-            let score = 0;
-
-            if (header.includes(key)) {
-                score = 1;
-
-                if (field.key === 'alt') {
-                    if (header.includes('gps')) score += 1;
-                    if (header.includes('msl') || header.includes('hae')) score += 1;
-                    if (header.includes('baro')) score += 0.5;
-                }
-                if (field.key === 'time') {
-                    if (header.includes('time')) score += 1;
-                }
-            }
-
-            if (score > bestScore) {
-                bestScore = score;
-                selectedIdx = i;
-            }
-        });
-
-        // Save the best guess directly to the app state
-        appState.mapping[field.key] = appState.headers[selectedIdx];
-    });
-}
 
     // Detect if the first data row actually contains units (common pattern)
     function detectAndStripUnits(results) {

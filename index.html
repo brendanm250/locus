@@ -72,9 +72,10 @@
         <div id="playback-hud">
             <div class="hud-top-row">
                 <button type="button" onclick="togglePlay()" id="play-btn">▶</button>
-                <input type="range" id="time-slider" min="0" max="100" value="0" oninput="JumpEvent.jumpToTime(parseInt(this.value), true)">
+                <input type="range" id="time-slider" min="0" max="100" value="0" step="0.1" oninput="JumpEvent.jumpToSeconds(parseFloat(this.value), true)">
             </div>
             <div class="hud-stats-row">
+                <div class="hud-stat" id="hud-active-trace-stat" style="display: none;"><span id="disp-trace-name" style="color: var(--accent-blue); font-weight: bold; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span></div>
                 <div class="hud-stat">TIME: <span id="disp-time">--:--</span></div>
                 <div class="hud-stat">DIST: <span id="disp-dist">-- km</span></div>
                 <div class="hud-stat">ALT: <span id="disp-alt">-- m</span></div>
@@ -90,17 +91,13 @@
             <div id="panel-content">
 
                 <div id="section-input" class="control-section">
-                    <div class="section-header" onclick="toggleSection(this)">Data Input</div>
+                    <div class="section-header" onclick="toggleSection(this)">Data Input & Traces</div>
 
                     <div class="section-content">
-                        <input type="file" id="csv-input" accept=".csv" class="input-styled">
+                        <input type="file" id="csv-input" accept=".csv" multiple style="display: none;">
+                        <button type="button" class="btn-primary-full" style="margin-top: 0;" onclick="document.getElementById('csv-input').click()">+ Add CSV File(s)</button>
 
-                        <div class="btn-row" id="data-action-btns" style="display: none;">
-                            <button type="button" onclick="toggleTable()">Raw Data</button>
-                            <button type="button" onclick="promptColumnMapping()">Remap Columns</button>
-                        </div>
-
-                        <div class="setting-row" style="margin-top: 15px; border-top: 1px solid var(--border-strong); padding-top: 15px;">
+                        <div class="setting-row" style="margin-top: 12px; border-top: 1px solid var(--border-strong); padding-top: 12px;">
                             <label class="ui-label">Sample Data</label>
                             <select id="sample-data-select">
                                 <option value="">Loading sample list...</option>
@@ -108,7 +105,23 @@
                         </div>
 
                         <div class="btn-row">
-                            <button type="button" id="btn-load-sample" onclick="loadSelectedSample()">Load Sample Data</button>
+                            <button type="button" id="btn-load-sample" onclick="loadSelectedSample()">+ Add Sample Track</button>
+                        </div>
+
+                        <!-- Trace Manager List -->
+                        <div id="trace-manager-section" style="margin-top: 14px; border-top: 1px solid var(--border-strong); padding-top: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <span class="ui-label" style="font-weight: bold; margin-bottom: 0;">Loaded Traces (<span id="trace-count">0</span>)</span>
+                                <button type="button" id="btn-clear-traces" onclick="clearAllTraces()" class="btn-icon-text" style="display: none;" title="Remove all traces">Clear All</button>
+                            </div>
+
+                            <div id="trace-list-container" class="trace-cards-container">
+                                <div id="trace-empty-hint" style="font-size: 0.75rem; color: var(--text-muted); font-style: italic; padding: 8px 0; text-align: center;">No traces loaded. Add a CSV or sample track.</div>
+                            </div>
+                        </div>
+
+                        <div class="btn-row" id="data-action-btns" style="display: none; margin-top: 12px;">
+                            <button type="button" onclick="toggleTable()">Raw Data</button>
                         </div>
                     </div>
                 </div>
@@ -149,15 +162,25 @@
                             </div>
 
                             <div class="setting-row">
-                                <label class="ui-label">Color Path By</label>
-                                <select id="color-select" onchange="updateColorBy(this.value)">
-                                    <option value="none">None</option>
+                                <label class="ui-label">Path Colors</label>
+                                <select id="path-color-mode" onchange="setPathColorMode(this.value)">
+                                    <option value="trace">Trace Colors</option>
+                                    <option value="metric">Telemetry Gradient</option>
                                 </select>
                             </div>
 
-                            <div id="gradient-container" style="display:none;">
-                                <label class="ui-label">Select Gradient:</label>
-                                <div id="gradient-picker"></div>
+                            <div id="metric-color-container" style="display: none;">
+                                <div class="setting-row">
+                                    <label class="ui-label">Color Path By</label>
+                                    <select id="color-select" onchange="updateColorBy(this.value)">
+                                        <option value="none">None</option>
+                                    </select>
+                                </div>
+
+                                <div id="gradient-container" style="display:none;">
+                                    <label class="ui-label">Select Gradient:</label>
+                                    <div id="gradient-picker"></div>
+                                </div>
                             </div>
 
                         </div>
@@ -206,6 +229,7 @@
         <div id="table-panel" class="panel">
             <div class="panel-header">
                 <span class="panel-title">Raw Data</span>
+                <select id="table-trace-select" onchange="onTableTraceChanged(this.value)" style="margin-left: 10px; max-width: 150px; height: 24px; font-size: 0.75rem; padding: 1px 4px; display: none;"></select>
                 <button type="button" class="btn-icon" onclick="toggleTable()">×</button>
             </div>
             <div id="data-table-container">
@@ -274,17 +298,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.4.2/chroma.min.js"></script>
 
-<script src="js/config.js?v=8"></script>
-<script src="js/config.local.js?v=8" onerror="/* Optional local override */"></script>
-<script src="js/init.js?v=8"></script>
-<script src="js/map.js?v=8"></script>
-<script src="js/chart.js?v=8"></script>
-<script src="js/table.js?v=8"></script>
-<script src="js/layers.js?v=8"></script>
-<script src="js/ui.js?v=8"></script>
-<script src="js/gradients.js?v=8"></script>
-<script src="js/utils.js?v=8"></script>
-<script src="js/share.js?v=8"></script>
+<script src="js/config.js?v=11"></script>
+<script src="js/config.local.js?v=11" onerror="/* Optional local override */"></script>
+<script src="js/init.js?v=11"></script>
+<script src="js/map.js?v=11"></script>
+<script src="js/chart.js?v=11"></script>
+<script src="js/table.js?v=11"></script>
+<script src="js/layers.js?v=11"></script>
+<script src="js/ui.js?v=11"></script>
+<script src="js/gradients.js?v=11"></script>
+<script src="js/utils.js?v=11"></script>
+<script src="js/share.js?v=11"></script>
 
 <script>
     "use strict";

@@ -97,60 +97,57 @@ function syncTerrainToPitch() {
 }
 
 function applyTerrainCorrection() {
-    if (!appState.processedData || !map.getSource('mapbox-dem')) return; // No data to correct or terrain not ready
+    if (!map || !map.getSource('mapbox-dem')) return;
 
-    const currentExaggeration = map.getTerrain().exaggeration;
-    if (currentExaggeration == null || currentExaggeration <= 0) return; // Terrain not yet active or no scale applied
+    const currentExaggeration = map.getTerrain() ? map.getTerrain().exaggeration : 0;
+    if (currentExaggeration == null || currentExaggeration <= 0) return;
 
-    appState.liftedSegments = [];
     let pointsCorrected = 0;
+    const visibleTraces = getVisibleTraces();
 
-    // Calculate the lifted points
-    appState.processedData.forEach(pt => {
-        const exaggeratedGroundAlt = map.queryTerrainElevation([pt._lon, pt._lat]);
-        if (exaggeratedGroundAlt == null) return;
+    visibleTraces.forEach(trace => {
+        trace.liftedSegments = [];
+        let currentSegment = null;
 
-        pt._groundAlt = exaggeratedGroundAlt / currentExaggeration; // Scale out exaggeration to true altitude
+        trace.processedData.forEach((pt, i) => {
+            const exaggeratedGroundAlt = map.queryTerrainElevation([pt._lon, pt._lat]);
+            if (exaggeratedGroundAlt == null) return;
 
-        if (pt._alt <= pt._groundAlt) {
-            pt._renderAlt = pt._groundAlt; // buffer above ground
-            pt._isLifted = true;
-            pointsCorrected++;
-        } else {
-            pt._renderAlt = pt._alt;
-            pt._isLifted = false;
-        }
+            pt._groundAlt = exaggeratedGroundAlt / currentExaggeration;
+            if (pt._alt <= pt._groundAlt) {
+                pt._renderAlt = pt._groundAlt;
+                pt._isLifted = true;
+                pointsCorrected++;
+            } else {
+                pt._renderAlt = pt._alt;
+                pt._isLifted = false;
+            }
+
+            if (pt._isLifted) {
+                if (!currentSegment) {
+                    currentSegment = [];
+                    if (i > 0) currentSegment.push(trace.processedData[i - 1]);
+                }
+                currentSegment.push(pt);
+            } else {
+                if (currentSegment) {
+                    currentSegment.push(pt);
+                    trace.liftedSegments.push(currentSegment);
+                    currentSegment = null;
+                }
+            }
+        });
+
+        if (currentSegment) trace.liftedSegments.push(currentSegment);
+        trace.liftedSegments = trace.liftedSegments.filter(seg => seg.length >= 2);
     });
 
-    // Build continuous segments for the visual cue
-    let currentSegment = null;
-
-    for (let i = 0; i < appState.processedData.length; i++) {
-        const pt = appState.processedData[i];
-
-        if (pt._isLifted) {
-            if (!currentSegment) {
-                currentSegment = [];
-                // Anchor the start of the line to the previous unlifted point
-                if (i > 0) currentSegment.push(appState.processedData[i-1]);
-            }
-            currentSegment.push(pt);
-        } else {
-            if (currentSegment) {
-                // Anchor the end of the line to this first unlifted point
-                currentSegment.push(pt);
-                appState.liftedSegments.push(currentSegment);
-                currentSegment = null;
-            }
-        }
-    }
-    // Catch a segment if the flight path ends while still lifted
-    if (currentSegment) appState.liftedSegments.push(currentSegment);
-
-    appState.liftedSegments = appState.liftedSegments.filter(seg => seg.length >= 2);
+    const active = getActiveTrace();
+    appState.liftedSegments = active?.liftedSegments || [];
 
     if (pointsCorrected > 0) {
         appState.terrainVersion += 1;
+        updateScreenCoordsCache();
         renderMapLayers();
     }
 }
@@ -173,34 +170,55 @@ function getCurrentViewport() {
 }
 
 function updateScreenCoordsCache() {
-    if (!appState.processedData.length) return;
+    const activeTrace = getActiveTrace();
+    if (!activeTrace || !activeTrace.visible || !activeTrace.processedData || !activeTrace.processedData.length) {
+        appState.screenCoordsCache = [];
+        return;
+    }
 
     const viewport = getCurrentViewport();
     const canvas = map.getCanvas();
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    const pad = 50; // Match the hover threshold
+    const pad = 50;
 
-    // Map the 3D data to 2D screen pixels once
-    appState.screenCoordsCache = appState.processedData.map(pt => {
-        const screenPos = viewport.project([pt._lon, pt._lat, pt._renderAlt * appState.effectiveScale]);
+    appState.screenCoordsCache = activeTrace.processedData.map(pt => {
+        const screenPos = viewport.project([pt._lon, pt._lat, (pt._renderAlt || 0) * (appState.effectiveScale || 1)]);
 
-        // Screen-space culling handles shallow angles perfectly
         if (screenPos[0] < -pad || screenPos[0] > w + pad ||
             screenPos[1] < -pad || screenPos[1] > h + pad) {
             return null;
         }
-        return screenPos; // Returns [x, y, z] where z is depth
+        return screenPos;
     });
 }
 
 function flyToCenter(options) {
-    if(appState.processedData.length == 0) return;
+    const visibleTraces = getVisibleTraces();
+    if (visibleTraces.length === 0) return;
+
+    let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+    visibleTraces.forEach(t => {
+        if (t.stats && t.stats.minLat != null && isFinite(t.stats.minLat)) {
+            minLat = Math.min(minLat, t.stats.minLat);
+            maxLat = Math.max(maxLat, t.stats.maxLat);
+            minLon = Math.min(minLon, t.stats.minLon);
+            maxLon = Math.max(maxLon, t.stats.maxLon);
+        }
+    });
+
+    if (!isFinite(minLat) || !isFinite(maxLat)) return;
+
+    const defaultOptions = {
+        padding: { top: 50, bottom: 50, left: 100, right: 50 },
+        bearing: 20,
+        pitch: 45,
+        curve: 3
+    };
 
     map.fitBounds(
-        [[appState.dataStats.minLon, appState.dataStats.minLat], // Southwest corner
-        [appState.dataStats.maxLon, appState.dataStats.maxLat]], // Northeast corner
-        options
+        [[minLon, minLat], [maxLon, maxLat]],
+        options || defaultOptions
     );
 }
 
@@ -273,8 +291,19 @@ function setupMapEventListeners() {
         updateScreenCoordsCache();
         renderMapLayers();
     });
+    map.on('rotate', () => {
+        renderMapLayers();
+    });
+    map.on('rotateend', () => {
+        updateScreenCoordsCache();
+        renderMapLayers();
+    });
     map.on('zoom', () => {
         applyTerrainCorrection();
+        renderMapLayers();
+    });
+    map.on('zoomend', () => {
+        updateScreenCoordsCache();
         renderMapLayers();
     });
     map.on('mousemove', (e) => {
