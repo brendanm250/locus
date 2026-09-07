@@ -2,40 +2,99 @@
 
 // --- STANDARD UI FUNCTIONS ---
 function initChartLists() {
-    const numericCols = appState.headers.filter(h => {
-        const val = appState.rawData[0][h];
-        return typeof val === 'number';
-    });
+    const visibleTraces = getVisibleTraces();
+    const active = getActiveTrace();
 
-    // Initialize Visible Chart Traces
-    appState.activeChartTraces = [];
-    if (appState.mapping.alt) appState.activeChartTraces.push(appState.mapping.alt); // Show alt if available
-    for (const col of numericCols) {
-        if(Object.values(appState.mapping).includes(col)) continue;
-        appState.activeChartTraces.push(col);
-        if(appState.activeChartTraces.length >= 2) break;
+    if (!visibleTraces.length) {
+        const list = document.getElementById('trace-list');
+        if (list) list.innerHTML = '';
+        const select = document.getElementById('context-trace');
+        if (select) select.innerHTML = '<option value="none">None</option>';
+        return;
+    }
+
+    // Collect all numeric columns across visible traces
+    const allNumericCols = new Set();
+    visibleTraces.forEach(t => {
+        if (t.headers && t.rawData && t.rawData[0]) {
+            t.headers.forEach(h => {
+                if (typeof t.rawData[0][h] === 'number') {
+                    allNumericCols.add(h);
+                }
+            });
+        }
+    });
+    const numericCols = Array.from(allNumericCols);
+
+    // If activeChartTraces has no entries or columns no longer present, initialize with defaults
+    if (!appState.activeChartTraces || appState.activeChartTraces.length === 0) {
+        appState.activeChartTraces = [];
+        if (active?.mapping?.alt && numericCols.includes(active.mapping.alt)) {
+            appState.activeChartTraces.push(active.mapping.alt);
+        }
+        for (const col of numericCols) {
+            if (active && Object.values(active.mapping || {}).includes(col)) continue;
+            appState.activeChartTraces.push(col);
+            if (appState.activeChartTraces.length >= 2) break;
+        }
+        if (appState.activeChartTraces.length === 0 && numericCols.length > 0) {
+            appState.activeChartTraces.push(numericCols[0]);
+        }
+    } else {
+        // Retain selected columns that exist
+        const valid = appState.activeChartTraces.filter(c => numericCols.includes(c));
+        if (valid.length > 0) {
+            appState.activeChartTraces = valid;
+        } else if (numericCols.length > 0) {
+            appState.activeChartTraces = [numericCols[0]];
+        }
     }
 
     const list = document.getElementById('trace-list');
-    list.innerHTML = '';
-    numericCols.forEach(col => {
-        const div = document.createElement('div');
-        div.className = 'checkbox-item';
-        div.innerHTML = `<label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; width: 100%;"><input type="checkbox" onchange="toggleChartTraces('${col}')" ${appState.activeChartTraces.includes(col)?'checked':''}> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${col}">${col}</span></label>`;
-        list.appendChild(div);
-    });
-
-    // Initialize Context Trace
-
-    const select = document.getElementById('context-trace');
-    select.innerHTML = '<option value="none">None</option>';
-    appState.headers.forEach(h => { if (typeof appState.rawData[0][h] === 'number') select.innerHTML += `<option value="${h}">${h}</option>`; });
-
-    if(appState.activeChartTraces.length > 0) {
-        appState.activeContextTrace = appState.activeChartTraces[0];
-        select.value = appState.activeContextTrace;
+    if (list) {
+        list.innerHTML = '';
+        numericCols.forEach(col => {
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+            div.innerHTML = `<label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; width: 100%;"><input type="checkbox" onchange="toggleChartTraces('${col}')" ${appState.activeChartTraces.includes(col) ? 'checked' : ''}> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${col}">${col}</span></label>`;
+            list.appendChild(div);
+        });
     }
 
+    // Initialize Context Trace
+    // Initialize Context Trace Source Selector
+    const sourceSelect = document.getElementById('context-source-select');
+    if (sourceSelect) {
+        sourceSelect.innerHTML = '<option value="active">Active Trace (Auto)</option>';
+        visibleTraces.forEach(t => {
+            sourceSelect.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+        });
+        if (appState.contextTraceSource && (appState.contextTraceSource === 'active' || visibleTraces.some(t => t.id === appState.contextTraceSource))) {
+            sourceSelect.value = appState.contextTraceSource;
+        } else {
+            appState.contextTraceSource = 'active';
+            sourceSelect.value = 'active';
+        }
+    }
+
+    // Initialize Context Trace Metric
+    const select = document.getElementById('context-trace');
+    if (select) {
+        select.innerHTML = '<option value="none">None</option>';
+        numericCols.forEach(h => {
+            select.innerHTML += `<option value="${h}">${h}</option>`;
+        });
+
+        if (!appState.activeContextTrace || !numericCols.includes(appState.activeContextTrace)) {
+            appState.activeContextTrace = appState.activeChartTraces[0] || 'none';
+        }
+        select.value = appState.activeContextTrace;
+    }
+}
+
+function updateContextTraceSource(val) {
+    appState.contextTraceSource = val;
+    renderCharts();
 }
 
 function initColorList() {
@@ -92,7 +151,10 @@ function getGradientColor(t) {
 
 function setXAxisMode(mode) {
     appState.xAxisMode = mode;
+    appState.chartZoom = null;
+    appState.chartViewRange = null;
     renderCharts();
+    renderMapLayers(true);
 }
 
 function toggleChartTraces(col) {

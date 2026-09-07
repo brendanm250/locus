@@ -263,16 +263,24 @@
                             <div class="setting-row">
                                 <label class="ui-label">X-Axis:</label>
                                 <select id="xaxis-select" onchange="setXAxisMode(this.value)">
-                                    <option value="time">Time</option>
-                                    <option value="distance">Dist</option>
+                                    <option value="time">Time (Relative)</option>
+                                    <option value="absTime">Time (UTC / Unix)</option>
+                                    <option value="distance">Distance</option>
                                 </select>
                             </div>
 
-                            <label class="ui-label">Visible Traces</label>
+                            <label class="ui-label">Chart Metrics</label>
                             <div class="checkbox-list" id="trace-list"></div>
 
                             <div class="setting-row">
-                                <label class="ui-label">Context Trace</label>
+                                <label class="ui-label">Context Source</label>
+                                <select id="context-source-select" onchange="updateContextTraceSource(this.value)">
+                                    <option value="active">Active Trace (Auto)</option>
+                                </select>
+                            </div>
+
+                            <div class="setting-row">
+                                <label class="ui-label">Context Metric</label>
                                 <select id="context-trace" onchange="updateChartContextTrace(this.value)"></select>
                             </div>
 
@@ -282,6 +290,7 @@
             </div>
 
             <div id="chart-main">
+                <div id="context-trace-badge" class="context-trace-badge" style="display: none;"></div>
                 <div id="chart-placeholder">
                     <div class="placeholder-icon">📊</div>
                     <div class="placeholder-text">No data to display...</div>
@@ -298,17 +307,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.4.2/chroma.min.js"></script>
 
-<script src="js/config.js?v=11"></script>
-<script src="js/config.local.js?v=11" onerror="/* Optional local override */"></script>
-<script src="js/init.js?v=11"></script>
-<script src="js/map.js?v=11"></script>
-<script src="js/chart.js?v=11"></script>
-<script src="js/table.js?v=11"></script>
-<script src="js/layers.js?v=11"></script>
-<script src="js/ui.js?v=11"></script>
-<script src="js/gradients.js?v=11"></script>
-<script src="js/utils.js?v=11"></script>
-<script src="js/share.js?v=11"></script>
+<script src="js/config.js?v=15"></script>
+<script src="js/config.local.js?v=15" onerror="/* Optional local override */"></script>
+<script src="js/init.js?v=15"></script>
+<script src="js/map.js?v=15"></script>
+<script src="js/chart.js?v=15"></script>
+<script src="js/table.js?v=15"></script>
+<script src="js/layers.js?v=15"></script>
+<script src="js/ui.js?v=15"></script>
+<script src="js/gradients.js?v=15"></script>
+<script src="js/utils.js?v=15"></script>
+<script src="js/share.js?v=15"></script>
 
 <script>
     "use strict";

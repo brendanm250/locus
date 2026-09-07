@@ -23,7 +23,8 @@ const LayerFactories = {
         data: segments,
         getPath: d => d.path.map(p => [p._lon, p._lat, (p._renderAlt*scale + offset)]),
         getColor: d => d.colors, // Reads directly from the segment payload
-        getWidth: defaultWidth,
+        getWidth: d => d.tag === 'dimmed-path' ? (defaultWidth - 1) : defaultWidth,
+        widthMinPixels: d => d.tag === 'dimmed-path' ? 2 : defaultMinPixelWidth,
         widthMinPixels: defaultMinPixelWidth,
         pickable: false,
         billboard: true,
@@ -31,7 +32,9 @@ const LayerFactories = {
         capRounded: true,
         parameters: { depthTest: true },
         updateTriggers: {
-            getPath: [scale, offset]
+            getPath: [scale, offset],
+            getWidth: [segments.map(s => s.tag).join(',')],
+            getColor: [segments.map(s => s.tag).join(',')]
         }
     }),
 
@@ -139,6 +142,7 @@ const LayerManifest = [
     {
         id: 'groundTrack',
         updateTrigger: () => [
+            JSON.stringify(appState.chartZoom),
             appState.effectiveScale,
             appState.showGroundTrack ? appState.terrainVersion : 'groundTrackDisabled',
             (appState.traces || []).map(t => `${t.id}:${t.visible}`).join(',')
@@ -147,9 +151,23 @@ const LayerManifest = [
             if (!appState.showGroundTrack) return [];
             const visibleTraces = getVisibleTraces();
             const allSegments = [];
+            const zoom = appState.chartZoom;
+            const isZoomed = zoom && zoom.isZoomed;
+            const xAxisKey = appState.xAxisMode === 'distance' ? '_distKm' : (appState.xAxisMode === 'absTime' ? '_absTime' : '_timeSec');
 
             visibleTraces.forEach(trace => {
                 if (!trace.mapPathData || trace.mapPathData.length <= 1) return;
+
+                const isInZoomWindow = (pt, index) => {
+                    if (!isZoomed) return true;
+                    if (zoom.startX != null && zoom.endX != null && pt[xAxisKey] != null) {
+                        return pt[xAxisKey] >= zoom.startX && pt[xAxisKey] <= zoom.endX;
+                    }
+                    const total = Math.max(1, trace.mapPathData.length - 1);
+                    const pct = (index / total) * 100;
+                    return pct >= zoom.startPct && pct <= zoom.endPct;
+                };
+
                 const segs = generateRenderSegments(trace.mapPathData, [
                     {
                         id: 'ground-track',
@@ -158,7 +176,12 @@ const LayerManifest = [
                             if (appState.effectiveScale < 0.1) return false;
                             return (pt._renderAlt - pt._groundAlt > 10);
                         },
-                        getColor: () => [180, 180, 180, 240]
+                        getColor: (pt, index) => {
+                            if (isZoomed && !isInZoomWindow(pt, index)) {
+                                return [100, 100, 100, 50];
+                            }
+                            return [180, 180, 180, 240];
+                        }
                     }
                 ]);
                 allSegments.push(...segs);
@@ -170,7 +193,7 @@ const LayerManifest = [
     {
         id: 'mainTrace',
         updateTrigger: () => [
-            appState.chartViewRange,
+            JSON.stringify(appState.chartZoom),
             appState.colorMode,
             appState.colorBy,
             appState.currentGradient,
@@ -180,10 +203,23 @@ const LayerManifest = [
         getData: () => {
             const visibleTraces = getVisibleTraces();
             const allSegments = [];
+            const zoom = appState.chartZoom;
+            const isZoomed = zoom && zoom.isZoomed;
+            const xAxisKey = appState.xAxisMode === 'distance' ? '_distKm' : (appState.xAxisMode === 'absTime' ? '_absTime' : '_timeSec');
 
             visibleTraces.forEach(trace => {
                 if (!trace.mapPathData || trace.mapPathData.length <= 1) return;
                 const pathColors = trace.pathColors || Array(trace.mapPathData.length).fill(trace.color);
+
+                const isInZoomWindow = (pt, index) => {
+                    if (!isZoomed) return true;
+                    if (zoom.startX != null && zoom.endX != null && pt[xAxisKey] != null) {
+                        return pt[xAxisKey] >= zoom.startX && pt[xAxisKey] <= zoom.endX;
+                    }
+                    const total = Math.max(1, trace.mapPathData.length - 1);
+                    const pct = (index / total) * 100;
+                    return pct >= zoom.startPct && pct <= zoom.endPct;
+                };
 
                 const segs = generateRenderSegments(trace.mapPathData, [
                     {
@@ -195,19 +231,27 @@ const LayerManifest = [
                         }
                     },
                     {
-                        id: 'chart-highlight',
-                        condition: (pt, index) => {
-                            return trace.id === appState.activeTraceId && appState.chartViewRange && index >= appState.chartViewRange[0] && index <= appState.chartViewRange[1];
-                        },
+                        id: 'dimmed-path',
+                        condition: (pt, index) => isZoomed && !isInZoomWindow(pt, index),
                         getColor: (pt, index) => {
                             const c = pathColors[index] || trace.color;
-                            return [c[0], c[1], c[2], 255];
+                            return [
+                                Math.round(c[0] * 0.35),
+                                Math.round(c[1] * 0.35),
+                                Math.round(c[2] * 0.35),
+                                60
+                            ];
                         }
                     },
                     {
                         id: 'altitude-correction-highlight',
-                        condition: (pt) => pt._isLifted && appState.showCorrections,
-                        getColor: () => [255, 130, 0, 255]
+                        condition: (pt, index) => pt._isLifted && appState.showCorrections,
+                        getColor: (pt, index) => {
+                            if (isZoomed && !isInZoomWindow(pt, index)) {
+                                return [120, 65, 0, 60];
+                            }
+                            return [255, 130, 0, 255];
+                        }
                     }
                 ]);
                 allSegments.push(...segs);

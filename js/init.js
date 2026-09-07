@@ -50,6 +50,15 @@ function getVisibleTraces() {
     return appState.traces.filter(t => t.visible);
 }
 
+function getContextTrace() {
+    if (!appState || !appState.traces || appState.traces.length === 0) return null;
+    if (appState.contextTraceSource && appState.contextTraceSource !== 'active') {
+        const found = appState.traces.find(t => t.id === appState.contextTraceSource);
+        if (found && found.visible) return found;
+    }
+    return getActiveTrace();
+}
+
 const FALLBACK_SAMPLES = [
     { name: 'Driving', path: 'sample_data/Driving.csv' },
     { name: 'Flying', path: 'sample_data/Flying.csv' },
@@ -413,6 +422,15 @@ function onTracesChanged(fitBounds = false) {
         renderTable(activeTrace.rawData, activeTrace.headers);
     }
 
+    if (appState.traces.length > 0) {
+        if (typeof initializeChartUI === 'function') initializeChartUI();
+    } else {
+        const placeholder = document.getElementById('chart-placeholder');
+        const chartDiv = document.getElementById('chart');
+        if (placeholder) placeholder.style.display = 'flex';
+        if (chartDiv) chartDiv.style.display = 'none';
+    }
+
     if (typeof renderCharts === 'function') {
         renderCharts();
     }
@@ -455,6 +473,7 @@ function launchApp() {
         currentGradient: 'Turbo',
         activeChartTraces: [],
         activeContextTrace: null,
+        contextTraceSource: 'active',
         xAxisMode: 'time',
         chartMouseY: null,
         totalDuration: 0,
@@ -462,6 +481,7 @@ function launchApp() {
         screenCoordsCache: [],
         isCameraMoving: false,
         chartViewRange: null,
+        chartZoom: null,
         liftedSegments: [],
         showCorrections: false,
         showGroundTrack: true,
@@ -642,17 +662,26 @@ const JumpEvent = {
         this.subscribers.push(fn);
     },
 
-    jumpToSeconds(seconds, forceUpdate = false) {
-        if (typeof seconds !== 'number' || isNaN(seconds)) return;
-        if (!forceUpdate && Math.abs((appState.playbackTime || 0) - seconds) < 0.001) return;
+    jumpToSeconds(seconds, forceUpdate = false, source = null) {
+        this.jumpToX(seconds, 'time', forceUpdate, source);
+    },
 
-        appState.playbackTime = seconds;
+    jumpToDistance(distKm, forceUpdate = false, source = null) {
+        this.jumpToX(distKm, 'distance', forceUpdate, source);
+    },
 
-        // Update active point on each visible trace
+    jumpToX(xVal, mode = (appState ? appState.xAxisMode : 'time'), forceUpdate = false, source = null) {
+        if (typeof xVal !== 'number' || isNaN(xVal)) return;
+
+        let key = '_timeSec';
+        if (mode === 'distance') key = '_distKm';
+        else if (mode === 'absTime') key = '_absTime';
+
+        // Update active point on each visible trace based on the selected dimension
         const visible = getVisibleTraces();
         visible.forEach(trace => {
             if (!trace.processedData || trace.processedData.length === 0) return;
-            const idx = findNearestIndexInTrace(trace.processedData, '_timeSec', seconds);
+            const idx = findNearestIndexInTrace(trace.processedData, key, xVal);
             trace.cursorIndex = idx;
             trace.cursorPoint = trace.processedData[idx];
         });
@@ -660,21 +689,24 @@ const JumpEvent = {
         const activeTrace = getActiveTrace();
         const activeIdx = activeTrace ? activeTrace.cursorIndex : 0;
         appState.hoverIndex = activeIdx;
+        if (activeTrace && activeTrace.cursorPoint && activeTrace.cursorPoint._timeSec != null) {
+            appState.playbackTime = activeTrace.cursorPoint._timeSec;
+        }
 
-        JumpEvent.publish(activeIdx, activeTrace ? activeTrace.cursorPoint : null);
+        JumpEvent.publish(activeIdx, activeTrace ? activeTrace.cursorPoint : null, source);
     },
 
-    jumpToTime(index, forceUpdate = false) {
+    jumpToTime(index, forceUpdate = false, source = null) {
         const activeTrace = getActiveTrace();
         if (!activeTrace || !activeTrace.processedData[index]) return;
         const pt = activeTrace.processedData[index];
-        JumpEvent.jumpToSeconds(pt._timeSec, forceUpdate);
+        JumpEvent.jumpToSeconds(pt._timeSec, forceUpdate, source);
     },
 
-    publish(index, point) {
+    publish(index, point, source = null) {
         this.subscribers.forEach(fn => {
             try {
-                fn(index, point);
+                fn(index, point, source);
             } catch (err) {
                 console.error(`Telemetry Error in ${fn.name || 'subscriber'}:`, err);
             }
@@ -708,12 +740,15 @@ function attachJumpEvents() {
     });
 
     // --- ECharts Update ---
-    JumpEvent.subscribe(function updateChart(idx) {
+    JumpEvent.subscribe(function updateChart(idx, pt, source) {
+        if (source === 'chart') return; // Don't re-dispatch when mouse is already interacting with chart
         if (chart && appState.activeChartTraces && appState.activeChartTraces.length > 0) {
+            const activeTrace = getActiveTrace();
+            const activeIdx = (activeTrace && activeTrace.cursorIndex != null) ? activeTrace.cursorIndex : idx;
             chart.dispatchAction({
                 type: 'showTip',
                 seriesIndex: 0,
-                dataIndex: idx
+                dataIndex: activeIdx
             });
         }
     });
