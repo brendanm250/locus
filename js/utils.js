@@ -22,7 +22,11 @@ function formatMagnitude(val, sigFigs = 3) {
     let suffix = '';
 
     // 3. Determine Magnitude
-    if (abs >= 1000000) {
+    if (abs >= 1000000000) {
+        divisor = 1000000000;
+        suffix = 'B';
+    }
+    else if (abs >= 1000000) {
         divisor = 1000000;
         suffix = 'M';
     } else if (abs >= 1000) {
