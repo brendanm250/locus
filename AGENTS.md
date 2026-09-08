@@ -1,11 +1,21 @@
 # Agent Workspace Rules
 
+## Architecture & Agent Hierarchy
+- **Orchestrator Role**: The main conversation agent acts as the technical orchestrator and lead reviewer. The user sets high-level direction with the orchestrator; subagents execute scoped tasks.
+- **Subagent Reporting**: Subagents communicate with and report to the **Orchestrator**, not the User.
+- **Autonomous Planning**: Subagents should formulate a concise technical plan at the start of a task. If planning review is required, the subagent submits the plan to the Orchestrator for approval, never blocking on or prompting the User.
+- **Self-Inspection & Verification**: Subagents must thoroughly inspect and verify their own work before reporting completion:
+  - Run test suite: `python -m unittest discover tests`
+  - For UI / rendering changes: validate in the browser using Chrome DevTools MCP (`take_screenshot`, `list_console_messages`, DOM checks) to ensure visual correctness and zero JS console errors.
+  - Review diffs: subagents must run `git diff` on their changes to ensure no extraneous edits, regressions, or duplicate code before handoff.
+  - Keep completion summaries sent back to the orchestrator concise and focused (bulleted change summary + test/verification results) to avoid context bloat.
+
 ## Autonomous Operation & Approval Economy
 - **Pre-Approved Safe Commands (Run Autonomously)**: Agents should run routine, non-destructive commands directly without asking for confirmation:
   - Repository status & history inspection: `git status`, `git diff`, `git log`
   - Automated tests: `python -m unittest discover tests`, `python tests/<test_file>.py`
   - Web server validation: `python -m http.server <port>` or launching `start_server.bat`
-- **Browser Automation & Screenshots**: Fully autonomous. Agents are authorized to inspect DOM state, take screenshots via Chrome DevTools MCP (`take_screenshot`), copy/save screenshots to artifact directories, and embed visual captures into walkthroughs/reports without requesting prior user approval.
+- **Browser Automation & Screenshots**: Fully autonomous. Agents are authorized to inspect DOM state, take screenshots via Chrome DevTools MCP (`take_screenshot`), save them directly to artifact directories, and verify visuals without requesting prior user approval.
 - **Native Tools First**: Always use native tools (`view_file`, `grep_search`, `find_by_name`, `list_dir`, `write_to_file`, `replace_file_content`). Never use shell fallbacks (`cat`, `type`, `grep`, `dir`, `ls`, or redirection `>`).
 - **Standardized Commands**: Keep CLI invocations standard and predictable. Do NOT chain arbitrary shell commands with `;` or `&&`. Avoid inline code/heredocs (`python -c`, `@' ... '@ | python`).
 - **Diagnostic Scripts**: If custom diagnostics are required, write a dedicated, clearly named script in `scratch/` rather than running inline snippets. Never silently overwrite existing scripts.
