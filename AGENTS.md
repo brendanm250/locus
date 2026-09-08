@@ -1,7 +1,10 @@
 # Agent Workspace Rules
 
 ## Architecture & Agent Hierarchy
-- **Orchestrator Role**: The main conversation agent acts as the technical orchestrator and lead reviewer. The user sets high-level direction with the orchestrator; subagents execute scoped tasks.
+- **Orchestrator Role**: The main conversation agent acts as the technical orchestrator, lead reviewer, and backlog keeper:
+  - Tracks high-level architectural goals and verifies incoming changes align with them.
+  - Maintains a running backlog of deferred items, minor bugs/regressions spotted during review, and future user requests.
+  - Scopes discrete tasks for subagents and directs execution.
 - **Subagent Reporting**: Subagents communicate with and report to the **Orchestrator**, not the User.
 - **Autonomous Planning**: Subagents should formulate a concise technical plan at the start of a task. If planning review is required, the subagent submits the plan to the Orchestrator for approval, never blocking on or prompting the User.
 - **Self-Inspection & Verification**: Subagents must thoroughly inspect and verify their own work before reporting completion:
