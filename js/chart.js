@@ -1,8 +1,21 @@
 // chart.js
 
-const theme = {
+var theme = window.theme || {
     get: (varName) => getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
 };
+window.theme = theme;
+
+var METRIC_PALETTE = window.METRIC_PALETTE || [
+    '#00d2ff', // cyan
+    '#ff7a00', // orange
+    '#10b981', // emerald green
+    '#a855f7', // purple
+    '#f43f5e', // rose
+    '#eab308', // gold
+    '#ec4899', // pink
+    '#06b6d4'  // teal
+];
+window.METRIC_PALETTE = METRIC_PALETTE;
 
 let mapOverlayTimer = null;
 
@@ -96,16 +109,20 @@ function formatXAxisValue(val) {
 function buildChartLayout(xAxisMode, metricCount) {
     // --- LAYOUT VARIABLES ---
     const leftMargin = 45;
+    const AXIS_SLOT_WIDTH = 75;
     let rightMarginMain = 35;
+    if (metricCount > 1) {
+        rightMarginMain = 35 + (metricCount - 1) * AXIS_SLOT_WIDTH;
+    }
     const rightMarginContext = rightMarginMain;
     if (metricCount === 2) {
         rightMarginMain = 55;
     } else if (metricCount > 2) {
         rightMarginMain = (metricCount - 1) * 55;
     }
-    const topMargin = 5;        // % from top of chart canvas
-    const mainHeight = 72;      // % height of the main chart
-    const gap = 6;              // % empty space for X-axis labels
+    const topMargin = 4;        // % from top of chart canvas
+    const mainHeight = 70;      // % height of the main chart
+    const gap = 8;              // % empty space for X-axis labels and context badge
     const contextHeight = 12;   // % height of the bottom mini-chart
 
     const mainGridTopStr = `${topMargin}%`;
@@ -198,24 +215,40 @@ function buildTraces(xAxisMode, data) {
         return 0;
     });
 
+    const isSingleDataset = visibleTraces.length <= 1;
+
     (appState.activeChartTraces || []).forEach((col, metricIdx) => {
+        const metricColor = METRIC_PALETTE[metricIdx % METRIC_PALETTE.length];
+        const axisColor = isSingleDataset ? metricColor : textMain;
+        const axisBorder = isSingleDataset ? metricColor : theme.get('--panel-border');
+        const axisTextColor = isSingleDataset ? metricColor : textMuted;
+
         yAxisConfig.push({
             type: 'value',
             gridIndex: 0,
             name: col,
             nameLocation: 'middle',
             nameGap: 35,
+            nameGap: 38,
             position: metricIdx === 0 ? 'left' : 'right',
             offset: metricIdx > 1 ? (metricIdx - 1) * 60 : 0,
+            offset: metricIdx > 1 ? (metricIdx - 1) * 75 : 0,
             splitLine: { show: false },
             axisLine: { show: true, lineStyle: { color: theme.get('--panel-border') } },
+            axisLine: { show: true, lineStyle: { color: axisBorder } },
             axisLabel: {
                 color: textMain,
+                color: axisColor,
+                fontSize: 10,
                 formatter: (val) => {
                     try { return formatMagnitude(val, 3); } catch (e) { return val; }
                 }
             },
-            nameTextStyle: { color: textMuted, fontSize: 11 }
+            nameTextStyle: {
+                color: axisTextColor,
+                fontSize: 11,
+                fontWeight: isSingleDataset ? 'bold' : 'normal'
+            }
         });
 
         // Line dash style per metric so multiple metrics are visually distinguishable:
@@ -247,6 +280,31 @@ function buildTraces(xAxisMode, data) {
                 }
             }
 
+            let lineColor;
+            let lineType;
+            let lineWidth;
+            let lineOpacity;
+
+            if (isSingleDataset) {
+                lineColor = metricColor;
+                lineType = 'solid';
+                lineWidth = 2.2;
+                lineOpacity = 1.0;
+            } else {
+                lineColor = trace.hexColor;
+                const patterns = [
+                    'solid',
+                    [8, 4],
+                    [2, 4],
+                    [12, 4, 3, 4],
+                    [4, 4]
+                ];
+                lineType = patterns[metricIdx % patterns.length];
+                const isDotted = metricIdx % patterns.length === 2;
+                lineWidth = isActive ? (isDotted ? 3.2 : 2.5) : (isDotted ? 2.4 : 1.8);
+                lineOpacity = isActive ? 1.0 : 0.75;
+            }
+
             series.push({
                 name: seriesName,
                 id: `trace_${trace.id}_${col}`,
@@ -255,12 +313,13 @@ function buildTraces(xAxisMode, data) {
                 yAxisIndex: metricIdx,
                 showSymbol: false,
                 lineStyle: {
-                    color: trace.hexColor,
-                    width: isActive ? 2.5 : 1.5,
-                    type: lineType
+                    color: lineColor,
+                    width: lineWidth,
+                    type: lineType,
+                    opacity: lineOpacity
                 },
                 itemStyle: {
-                    color: trace.hexColor
+                    color: lineColor
                 },
                 data: seriesData,
                 markArea: isActive && metricIdx === 0 ? {
@@ -413,9 +472,14 @@ function buildTooltip() {
                         if (pixelPos) pixelY = pixelPos[1];
                     } catch (e) {}
 
+                    const isSingleDataset = visibleTraces.length <= 1;
+                    const metricColor = METRIC_PALETTE[metricIdx % METRIC_PALETTE.length];
+                    const bulletColor = isSingleDataset ? metricColor : trace.hexColor;
+
                     rows.push({
                         seriesName,
                         color: trace.hexColor,
+                        color: bulletColor,
                         valStr,
                         pixelY
                     });

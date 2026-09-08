@@ -245,8 +245,12 @@
 
     #chart-container.minimized {
         bottom: 25px;
-        left: 20px;
+        left: calc(var(--gap-std) + 10px);
         right: auto;
+    }
+
+    #chart-container.minimized #sidebar-toggle {
+        display: none;
     }
 
     #chart-container.minimized .panel-header {
@@ -685,21 +689,29 @@
 
     .context-trace-badge {
         position: absolute;
-        bottom: 6px;
-        left: 50px;
+        bottom: 28px;
+        left: 45px;
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 2px 8px;
+        padding: 1px 6px;
         background: rgba(15, 23, 42, 0.85);
+        padding: 2px 8px;
+        background: var(--bg-surface);
         border: 1px solid var(--border-strong);
         border-radius: 4px;
-        font-size: 11px;
+        font-size: 10px;
+        line-height: 14px;
         color: var(--text-muted);
+        font-size: 11px;
+        line-height: 16px;
+        color: var(--text-main);
         pointer-events: none;
         z-index: 10;
         backdrop-filter: blur(4px);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
     }
     .context-trace-badge .badge-dot {
         width: 8px;
@@ -710,6 +722,7 @@
     }
     .context-trace-badge .badge-name {
         font-weight: 600;
+        font-weight: 700;
         color: var(--text-bright);
     }
     #chart-sidebar {

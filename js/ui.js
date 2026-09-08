@@ -278,6 +278,7 @@ function clearAllTraces() {
     appState.traces = [];
     appState.activeTraceId = null;
     appState.playbackTime = 0;
+    appState.hasAutoCollapsedInput = false;
     onTracesChanged(false);
 }
 

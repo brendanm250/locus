@@ -391,6 +391,13 @@ function onTracesChanged(fitBounds = false) {
     if (appState.traces.length > 0) {
         if (dataDependentControls) dataDependentControls.style.display = 'block';
         if (dataActionBtns) dataActionBtns.style.display = 'flex';
+        if (!appState.hasAutoCollapsedInput) {
+            appState.hasAutoCollapsedInput = true;
+            const inputSection = document.getElementById('section-input');
+            if (inputSection && !inputSection.classList.contains('collapsed')) {
+                inputSection.classList.add('collapsed');
+            }
+        }
     } else {
         if (dataDependentControls) dataDependentControls.style.display = 'none';
         if (dataActionBtns) dataActionBtns.style.display = 'none';
@@ -464,6 +471,7 @@ function launchApp() {
         playbackRate: 1,
         maxDuration: 0,
         maxDistance: 0,
+        hasAutoCollapsedInput: false,
 
         // Single-trace backward-compatibility & globals
         hoverIndex: -1,
